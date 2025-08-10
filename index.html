@@ -175,8 +175,7 @@
           const h = rows[0][i]||''; const c = r[i] ?? '';
           if(i===titleCol){
             const titleHTML = url ? `<a href="#" onclick="openSong('${escapeHTML(c)}','${url}')">${escapeHTML(c)}</a>` : escapeHTML(c);
-            const badge = st ? ` <span class="status ${stClass}">${escapeHTML(st)}</span>` : '';
-            tds += `<td class="link">${titleHTML}${badge}</td>`;
+            tds += `<td class="link">${titleHTML}</td>`;
           } else if(i===noteCol && (c+'').trim()){
             tds += `<td><span class="badge">${escapeHTML(c)}</span></td>`;
           } else {
@@ -280,3 +279,4 @@
   </script>
 </body>
 </html>
+
