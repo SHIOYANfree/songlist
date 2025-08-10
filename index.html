@@ -261,3 +261,25 @@
   </script>
 </body>
 </html>
+
+<span class="chip"><input type="checkbox" id="fOriginal"> オリジナルのみ</span>
+// 既存のイベント群にこれ追加
+document.getElementById('fOriginal').addEventListener('change', rerender);
+
+// フィルタ処理にオリジナル条件を合成
+function applyOriginalFilter(allRows){
+  const on = document.getElementById('fOriginal')?.checked;
+  if(!on) return allRows;
+  return [allRows[0]].concat(allRows.slice(1).filter(r => isOriginal(r)));
+}
+
+// rerender() 内の並びをこう（検索→状態→オリジナルの順で）
+function rerender(){
+  const sorted = sortByTitle(rows);
+  const afterSearch = applySearch(sorted, document.getElementById('searchBox').value);
+  const afterState  = applyStateFilter(afterSearch);
+  const finalRows   = applyOriginalFilter(afterState);
+  renderBody(finalRows);
+}
+
+
