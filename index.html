@@ -176,29 +176,21 @@
             const title  = norm(c);
             const artist = (artistCol>=0 ? r[artistCol] : '');
             let titleHTML = escapeHTML(title);
-            - if (url) {
--   titleHTML = `<a href="#" onclick="openSong('${escapeHTML(title)}','${url}')">${escapeHTML(title)}</a>`;
-- } else if (isOriginal(r)) {
--   titleHTML = codeUrl
--     ? `${escapeHTML(title)} <span class="quick-links"><a href="${codeUrl}" target="_blank" rel="noopener">自分のコード</a></span>`
--     : `${escapeHTML(title)} <span class="badge">準備中</span>`;
-- } else {
--   titleHTML = `${escapeHTML(title)}${buildQuickLinks(title, artist)}`;
-- }
-+ if (url) {
-+   // 直リンク（ChordWiki等）
-+   titleHTML = `<a href="#" onclick="openSong('${escapeHTML(title)}','${url}')">${escapeHTML(title)}</a>`;
-+ } else if (codeUrl) {
-+   // オリジナルかどうかに関係なく、コードURLがあれば最優先で表示
-+   titleHTML = `${escapeHTML(title)} <span class="quick-links"><a href="${codeUrl}" target="_blank" rel="noopener">自分のコード</a></span>`;
-+ } else if (isOriginal(r)) {
-+   // オリジナルでコードURLなし→準備中表示
-+   titleHTML = `${escapeHTML(title)} <span class="badge">準備中</span>`;
-+ } else {
-+   // 通常曲：クイック検索ボタン
-+   titleHTML = `${escapeHTML(title)}${buildQuickLinks(title, artist)}`;
-+ }
-
+            if(url){ // 直リンク優先
+              titleHTML = `<a href="#" onclick="openSong('${escapeHTML(title)}','${url}')">${escapeHTML(title)}</a>`;
+            } else if(isOriginal(r)){ // オリジナル：自コード or 準備中
+              titleHTML = codeUrl
+                ? `${escapeHTML(title)} <span class="quick-links"><a href="${codeUrl}" target="_blank" rel="noopener">自分のコード</a></span>`
+                : `${escapeHTML(title)} <span class="badge">準備中</span>`;
+            } else { // 通常曲：クイック検索
+              titleHTML = `${escapeHTML(title)}${buildQuickLinks(title, artist)}`;
+            }
+            return `<td class="link">${titleHTML}</td>`;
+          } else if(i===noteCol && norm(c)!==''){
+            return `<td><span class="badge">${escapeHTML(norm(c))}</span></td>`;
+          } else {
+            return `<td>${escapeHTML(c)}</td>`;
+          }
         }).join('');
         return `<tr>${tds}</tr>`;
       }).join('');
