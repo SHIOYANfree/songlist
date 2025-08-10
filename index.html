@@ -23,6 +23,7 @@
 
     .btn{appearance:none; border:1px solid var(--border); background:var(--panel); color:var(--text); padding:8px 12px; border-radius:12px; cursor:pointer}
     .btn:hover{border-color:var(--accent)}
+    .btn.active{ border-color:var(--accent); box-shadow:0 0 0 2px color-mix(in hsl, var(--accent) 30%, transparent) inset; }
 
     .wrap{max-width:1100px; margin:auto; padding:12px 16px}
 
@@ -42,7 +43,7 @@
     .link a{color:var(--accent); text-decoration:none}
     .link a:hover{text-decoration:underline}
 
-    .side{display:flex; gap:12px; flex-wrap:wrap; align-items:center}
+    .side{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
     .switch{display:inline-flex; align-items:center; gap:8px}
     .switch input{accent-color:var(--accent)}
 
@@ -72,7 +73,9 @@
       </div>
       <div class="side">
         <span class="switch"><input type="checkbox" id="stageToggle"> 本番モード</span>
-        <button id="sortBtn" class="btn" title="曲名で並び替え">曲名A→Z</button>
+        <!-- ★ ソート2種 -->
+        <button id="sortTitleBtn" class="btn">曲名A→Z</button>
+        <button id="sortArtistBtn" class="btn">アーティストA→Z</button>
         <label class="chip"><input id="darkToggle" type="checkbox"/> ダーク</label>
       </div>
     </div>
@@ -109,15 +112,14 @@
   </div>
 
   <script>
-    /* ---------- 正規化まわり ---------- */
+    /* ---------- 正規化 ---------- */
     function norm(s){
       return (s ?? '')
         .toString()
-        .normalize('NFKC')      // 全半角・濁点結合などを正規化
-        .replace(/\s+/g,' ')    // 連続スペース/改行を1つの空白に
+        .normalize('NFKC')
+        .replace(/\s+/g,' ')
         .trim();
     }
-    // ひらがな→カタカナ
     function toKana(s){
       return (s||'').replace(/[\u3041-\u3096]/g, ch =>
         String.fromCharCode(ch.charCodeAt(0)+0x60)
@@ -141,15 +143,22 @@
     }
 
     /* ---------- State ---------- */
-    let rows=[]; let sortAsc=true;
+    let rows=[];
+
+    // 列インデックス
     let titleCol=-1, noteCol=-1, stateCol=-1, artistCol=-1, linkCol=-1, codeCol=-1;
+
+    // ソート状態
+    let sortKey = 'title';          // 'title' | 'artist'
+    let sortAscTitle = true;
+    let sortAscArtist = true;
 
     /* ---------- Helpers ---------- */
     function escapeHTML(s){ return (s??'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
     function sanitizeURL(u){ try{ const url=new URL((u||'').trim()); if(url.protocol==='http:'||url.protocol==='https:') return url.href; }catch{} return ''; }
     function enc(s){ return encodeURIComponent(norm(s)); }
 
-    // ★ オリジナル判定（備考を norm + toKana 済みで評価）
+    // オリジナル判定（正規化後に判定）
     function isOriginal(row){
       const artist = (artistCol>=0 ? toKana(norm(row[artistCol])) : '');
       const note   = (noteCol>=0 ? toKana(norm(row[noteCol]))   : '');
@@ -243,13 +252,22 @@
         )
       );
     }
-    function sortByTitle(allRows){
-      if(titleCol<0) return allRows;
-      return [allRows[0]].concat(allRows.slice(1).sort((a,b)=>{
-        const A=norm(a[titleCol]).toLowerCase();
-        const B=norm(b[titleCol]).toLowerCase();
-        return sortAsc ? A.localeCompare(B,'ja') : B.localeCompare(A,'ja');
-      }));
+
+    // 並べ替え（曲名 / アーティスト）
+    function sortRows(allRows){
+      const header = allRows[0];
+      const data = allRows.slice(1);
+      const idx = (sortKey === 'artist' && artistCol >= 0) ? artistCol : titleCol;
+      const asc = (sortKey === 'artist') ? sortAscArtist : sortAscTitle;
+      if (idx < 0) return allRows; // 列が不明ならソートしない
+
+      const sorted = data.sort((a,b)=>{
+        const A = norm(a[idx]||'').toLowerCase();
+        const B = norm(b[idx]||'').toLowerCase();
+        const cmp = A.localeCompare(B,'ja');
+        return asc ? cmp : -cmp;
+      });
+      return [header].concat(sorted);
     }
 
     // 含めるカテゴリ（チェックされたものの和集合）
@@ -277,10 +295,24 @@
       document.getElementById('countShown').textContent=shown;
     }
 
+    function updateSortButtons(){
+      const btnTitle  = document.getElementById('sortTitleBtn');
+      const btnArtist = document.getElementById('sortArtistBtn');
+      btnTitle.classList.toggle('active',  sortKey==='title');
+      btnArtist.classList.toggle('active', sortKey==='artist');
+
+      btnTitle.textContent  = `曲名${sortAscTitle?'A→Z':'Z→A'}`;
+      btnArtist.textContent = `アーティスト${sortAscArtist?'A→Z':'Z→A'}`;
+
+      // アーティスト列がない場合は無効化
+      btnArtist.disabled = (artistCol < 0);
+      btnArtist.title = (artistCol < 0) ? 'CSVにアーティスト列が無いので使用できません' : 'アーティスト名で並べ替え';
+    }
+
     function rerender(){
-      const sorted       = sortByTitle(rows);
-      const afterSearch  = applySearch(sorted, document.getElementById('searchBox').value);
+      const afterSearch  = applySearch(rows, document.getElementById('searchBox').value);
       const afterFilter  = applyCategoryFilter(afterSearch);
+      const afterSort    = sortRows(afterFilter);
 
       // 表示列（リンク先/コードURLを隠す）＋保険
       const header = rows[0];
@@ -288,26 +320,38 @@
       if (showIdx.length === 0) showIdx = header.map((_,i)=>i);
 
       renderHeader(header, showIdx);
-      renderBody(afterFilter, showIdx);
+      renderBody(afterSort, showIdx);
+      updateSortButtons();
     }
 
     /* ---------- Events ---------- */
-    const searchBox=document.getElementById('searchBox');
-    const sortBtn=document.getElementById('sortBtn');
-    const darkToggle=document.getElementById('darkToggle');
-    const fPractice=document.getElementById('fPractice');
-    const fOk=document.getElementById('fOk');
-    const fEns=document.getElementById('fEns');
-    const fOriginal=document.getElementById('fOriginal');
-    const stageToggle=document.getElementById('stageToggle');
+    const searchBox     = document.getElementById('searchBox');
+    const darkToggle    = document.getElementById('darkToggle');
+    const fPractice     = document.getElementById('fPractice');
+    const fOk           = document.getElementById('fOk');
+    const fEns          = document.getElementById('fEns');
+    const fOriginal     = document.getElementById('fOriginal');
+    const stageToggle   = document.getElementById('stageToggle');
+    const sortTitleBtn  = document.getElementById('sortTitleBtn');
+    const sortArtistBtn = document.getElementById('sortArtistBtn');
 
     searchBox.addEventListener('input', rerender);
-    sortBtn.addEventListener('click', ()=>{ sortAsc=!sortAsc; sortBtn.textContent=sortAsc?'曲名A→Z':'曲名Z→A'; rerender(); });
-    darkToggle.addEventListener('change', ()=>{ document.documentElement.style.colorScheme=darkToggle.checked?'dark':'light'; });
+    darkToggle.addEventListener('change', ()=>{ document.documentElement.style.colorScheme=darkToggle.checked?'dark':'light'; rerender(); });
     fPractice.addEventListener('change', rerender);
     fOk.addEventListener('change', rerender);
     fEns.addEventListener('change', rerender);
     fOriginal.addEventListener('change', rerender);
+
+    sortTitleBtn.addEventListener('click', ()=>{
+      if (sortKey === 'title') sortAscTitle = !sortAscTitle; // 連打で昇降反転
+      sortKey = 'title';
+      rerender();
+    });
+    sortArtistBtn.addEventListener('click', ()=>{
+      if (sortKey === 'artist') sortAscArtist = !sortAscArtist;
+      sortKey = 'artist';
+      rerender();
+    });
 
     stageToggle.addEventListener('change', ()=>{
       document.body.classList.toggle('stage', stageToggle.checked);
@@ -339,14 +383,13 @@
           else if (header.length > 1) titleCol = 0;
         }
 
-        // 初期：本番モードON（必要ならここで初期チェック変更）
+        // 初期：本番モードON
         const STAGE_DEFAULT=true;
         if(STAGE_DEFAULT){
           stageToggle.checked=true; document.body.classList.add('stage');
           fPractice.checked=false; fOk.checked=true; fEns.checked=false; fOriginal.checked=false;
         }
 
-        renderRecent();
         rerender();
       }).catch(err=>{
         console.error(err);
@@ -356,3 +399,4 @@
   </script>
 </body>
 </html>
+
