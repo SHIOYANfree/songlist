@@ -310,3 +310,43 @@
 +   : (titleTrim
 +       ? `${escapeHTML(titleTrim)}${buildQuickLinks(titleTrim, artist)}`
 +       : '' /* 曲名が空なら何も出さない */);
+// 既存の変数群に追加
+let codeCol = -1;
+
+// load() でヘッダを読んだ直後に追加（linkCol 等の近く）
+codeCol = header.findIndex(h => /コードURL|自.?コード|score|chart/i.test(h||''));
+
+function isOriginal(row){
+  const artist = (artistCol>=0 ? (row[artistCol]||'') : '');
+  const note   = (noteCol>=0 ? (row[noteCol]||'') : '');
+  return /オリジナル/i.test(note) || /しおやん|Shioyan/i.test(artist);
+}
+
+const title = (c || '').trim();
+const artist = (artistCol>=0 ? (r[artistCol]||"") : "");
+const url = (linkCol>=0 ? sanitizeURL(r[linkCol]) : ""); // 直リンク（任意）
+const codeUrl = (codeCol>=0 ? sanitizeURL(r[codeCol]) : ""); // 自コード（任意）
+const original = isOriginal(r);
+
+let titleHTML = escapeHTML(title);
+
+// 1) 直リンク（一般曲用）
+if(url){
+  titleHTML = `<a href="#" onclick="openSong('${escapeHTML(title)}','${url}')">${escapeHTML(title)}</a>`;
+}
+// 2) オリジナルなら検索ボタンは出さず、コードURLだけを見る
+else if(original){
+  if(codeUrl){
+    titleHTML = `${escapeHTML(title)} <span class="quick-links"><a href="${codeUrl}" target="_blank" rel="noopener">自分のコード</a></span>`;
+  }else{
+    titleHTML = `${escapeHTML(title)} <span class="badge">準備中</span>`;
+  }
+}
+// 3) 通常曲でリンクも無ければクイック検索
+else{
+  titleHTML = `${escapeHTML(title)}${buildQuickLinks(title, artist)}`;
+}
+
+tds += `<td class="link">${titleHTML}</td>`;
+
+
