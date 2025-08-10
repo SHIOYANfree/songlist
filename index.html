@@ -1,90 +1,54 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="UTF-8">
-<title>しおやんの弾き語りリスト</title>
-<style>
-    body { font-family: sans-serif; margin: 20px; }
-    input { padding: 6px; width: 250px; margin-bottom: 10px; }
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #ccc; padding: 8px; }
-    th { background-color: #f0f0f0; }
-</style>
-</head>
-<body>
-
-<h1>しおやんの弾き語りリスト</h1>
-<input type="text" id="searchBox" placeholder="曲名やアーティストで検索...">
-<table id="songTable"></table>
-
 <script>
-// CSVをパースする（カンマやクォート対応）
+// CSVをパース（クォート対応）
 function parseCSV(text) {
-    const rows = [];
-    let currentRow = [];
-    let currentCell = '';
-    let insideQuotes = false;
-
-    for (let i = 0; i < text.length; i++) {
-        const char = text[i];
-        if (char === '"') {
-            if (insideQuotes && text[i + 1] === '"') {
-                currentCell += '"';
-                i++;
-            } else {
-                insideQuotes = !insideQuotes;
-            }
-        } else if (char === ',' && !insideQuotes) {
-            currentRow.push(currentCell);
-            currentCell = '';
-        } else if ((char === '\n' || char === '\r') && !insideQuotes) {
-            if (currentCell || currentRow.length) {
-                currentRow.push(currentCell);
-                rows.push(currentRow);
-                currentRow = [];
-                currentCell = '';
-            }
-        } else {
-            currentCell += char;
-        }
-    }
-    if (currentCell || currentRow.length) {
-        currentRow.push(currentCell);
-        rows.push(currentRow);
-    }
-    return rows;
+  const rows = [];
+  let row = [], cell = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '"') {
+      if (q && text[i+1] === '"') { cell += '"'; i++; }
+      else { q = !q; }
+    } else if (ch === ',' && !q) { row.push(cell); cell = ""; }
+    else if ((ch === '\n' || ch === '\r') && !q) {
+      if (cell !== "" || row.length) { row.push(cell); rows.push(row); }
+      row = []; cell = "";
+    } else { cell += ch; }
+  }
+  if (cell !== "" || row.length) { row.push(cell); rows.push(row); }
+  return rows;
 }
 
-// 表描画
 function renderTable(rows) {
-    let html = '<tr>' + rows[0].map(h => `<th>${h}</th>`).join('') + '</tr>';
-    for (let i = 1; i < rows.length; i++) {
-        html += '<tr>' + rows[i].map(c => `<td>${c}</td>`).join('') + '</tr>';
-    }
-    document.getElementById('songTable').innerHTML = html;
+  let html = '<tr>' + rows[0].map(h => `<th>${h}</th>`).join('') + '</tr>';
+  for (let i = 1; i < rows.length; i++) {
+    html += '<tr>' + rows[i].map(c => `<td>${c}</td>`).join('') + '</tr>';
+  }
+  document.getElementById('songTable').innerHTML = html;
 }
 
-// 検索機能
 function setupSearch(rows) {
-    const searchBox = document.getElementById('searchBox');
-    searchBox.addEventListener('input', () => {
-        const keyword = searchBox.value.toLowerCase();
-        const filtered = rows.filter((row, index) =>
-            index === 0 || row.some(cell => cell.toLowerCase().includes(keyword))
-        );
-        renderTable(filtered);
-    });
+  const box = document.getElementById('searchBox');
+  box.addEventListener('input', () => {
+    const kw = box.value.toLowerCase();
+    const filtered = rows.filter((r, i) =>
+      i === 0 || r.some(c => c.toLowerCase().includes(kw))
+    );
+    renderTable(filtered);
+  });
 }
 
-// CSV読み込み
+// ★ ここがポイント：まずUTF-8でdecode。失敗したらShift-JISで再decode
 fetch('弾き語り曲リスト.csv')
-    .then(res => res.text())
-    .then(text => {
-        const rows = parseCSV(text.trim());
-        renderTable(rows);
-        setupSearch(rows);
-    });
+  .then(res => res.arrayBuffer())
+  .then(buf => {
+    let text;
+    try {
+      text = new TextDecoder('utf-8', { fatal: true }).decode(buf);
+    } catch {
+      text = new TextDecoder('shift_jis').decode(buf);
+    }
+    const rows = parseCSV(text.trim());
+    renderTable(rows);
+    setupSearch(rows);
+  });
 </script>
-
-</body>
-</html>
