@@ -296,3 +296,17 @@
 </html>
 - fetch('弾き語り曲リスト.csv?v='+v)
 + fetch(encodeURI('弾き語り曲リスト.csv') + '?v=' + v)
+
+- const header = rows[0].map(h=> (h||'').toString().trim());
++ const header = rows[0].map(h => (h||'').toString().replace(/^\uFEFF/, '').trim());
+
+
+- const titleHTML = url
+-   ? `<a href="#" onclick="openSong('${escapeHTML(title)}','${url}')">${escapeHTML(title)}</a>`
+-   : `${escapeHTML(title)}${buildQuickLinks(title, artist)}`;
++ const titleTrim = (title || '').trim();
++ const titleHTML = url
++   ? `<a href="#" onclick="openSong('${escapeHTML(title)}','${url}')">${escapeHTML(titleTrim)}</a>`
++   : (titleTrim
++       ? `${escapeHTML(titleTrim)}${buildQuickLinks(titleTrim, artist)}`
++       : '' /* 曲名が空なら何も出さない */);
