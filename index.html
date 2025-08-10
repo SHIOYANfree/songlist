@@ -40,12 +40,6 @@
     tbody tr:hover td{background:color-mix(in hsl, var(--zebra) 70%, var(--panel))}
 
     .badge{display:inline-block; padding:2px 8px; border-radius:999px; background:var(--badge-bg); color:var(--badge-text); border:1px solid var(--border); font-size:12px}
-    .status{margin-left:.5rem; border-radius:999px; padding:2px 8px; font-size:12px; border:1px solid var(--border)}
-    .st-ok{background:#0b3; color:#eafff3}
-    .st-practice{background:#b8860b; color:#fffbe8}
-    .st-ens{background:#555; color:#f2f2f2}
-
-    .row-ens td{opacity:.7}
 
     .link a{color:var(--accent); text-decoration:none}
     .link a:hover{text-decoration:underline}
@@ -54,17 +48,22 @@
     .switch{display:inline-flex; align-items:center; gap:8px}
     .switch input{accent-color:var(--accent)}
 
-    /* 本番モード */
+    /* 本番モード（でか文字・見やすさ重視） */
     body.stage .pill{padding:12px 16px}
     body.stage h1{font-size:20px}
     body.stage th, body.stage td{padding:14px 14px; font-size:18px}
     body.stage .btn, body.stage .chip{padding:10px 14px; font-size:16px}
-    body.stage .status{font-size:14px}
     body.stage .header .inner{gap:12px}
 
-    /* 最近演奏 */
+    /* 最近ひいた曲 */
     .recent{display:flex; flex-wrap:wrap; gap:8px}
     .recent .rbtn{border:1px solid var(--border); background:var(--panel); color:var(--text); padding:6px 10px; border-radius:999px; cursor:pointer}
+
+    /* クイック検索ボタン（リンク先が空のとき表示） */
+    .quick-links { display:inline-flex; gap:.25rem; margin-left:.5rem; flex-wrap:wrap; }
+    .quick-links a {
+      font-size:12px; padding:2px 6px; border:1px solid var(--border); border-radius:6px; text-decoration:none; color:var(--text); background:var(--panel);
+    }
 
     @media (max-width:640px){ th{top:108px} }
   </style>
@@ -74,8 +73,8 @@
     <div class="inner">
       <h1>しおやんの弾き語りリスト</h1>
       <div class="pill" style="flex:1">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M21 21L16.65 16.65M19 11C19 15.4183 15.4183 19 11 19C6.58172 19 3 15.4183 3 11C3 6.58172 6.58172 3 11 3C15.4183 3 19 6.58172 19 11Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <input id="searchBox" placeholder="検索（スペース区切りでAND）」/>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M21 21L16.65 16.65M19 11C19 15.4183 15.4183 19 11 19C6.58172 19 3 15.4183 3 11C3 6.58172 6 3 11 3C15.4183 3 19 6.58 19 11Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <input id="searchBox" placeholder="検索（スペース区切りでAND）"/>
       </div>
       <div class="side">
         <span class="switch"><input type="checkbox" id="stageToggle"> 本番モード</span>
@@ -106,7 +105,10 @@
       </div>
     </div>
 
-    <p style="color:var(--muted); font-size:13px; margin:12px 2px">※ CSVヘッダ例：<code>状態,曲名,アーティスト,備考,リンク先</code>（順不同OK） / URLは <code>https://</code> から。 本番モードは初期表示を「対応可のみ」にします。</p>
+    <p style="color:var(--muted); font-size:13px; margin:12px 2px">
+      ※ CSVヘッダ例：<code>状態,曲名,アーティスト,備考,リンク先</code>（順不同OK） / URLは <code>https://</code> から。  
+      ※ リンク先が空の曲には「ChordWiki / U-FRET / 歌詞検索」ボタンが自動表示されます。
+    </p>
   </div>
 
   <script>
@@ -127,11 +129,26 @@
 
     // ===== State =====
     let rows=[]; let sortAsc=true;
-    let titleCol=-1, noteCol=-1, linkCol=-1, stateCol=-1;
+    let titleCol=-1, noteCol=-1, linkCol=-1, stateCol=-1, artistCol=-1;
 
     // ===== Helpers =====
-    function escapeHTML(s){ return (s??'').replace(/[&<>"']/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m])); }
+    function escapeHTML(s){ return (s??'').replace(/[&<>\"']/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m])); }
     function sanitizeURL(u){ try{ const url=new URL((u||'').trim()); if(url.protocol==='http:'||url.protocol==='https:') return url.href; }catch{} return ''; }
+    function enc(s){ return encodeURIComponent((s||"").trim()); }
+
+    // Quick search links (when Link is empty)
+    function buildQuickLinks(title, artist){
+      const q = enc(`${title} ${artist}`);
+      const chordwiki = `https://www.google.com/search?q=site:ja.chordwiki.org+${q}`;
+      const ufret     = `https://www.google.com/search?q=site:ufret.jp+${q}`;
+      const jlyric    = `https://www.google.com/search?q=site:j-lyric.net+${q}`;
+      return `
+        <span class="quick-links">
+          <a href="${chordwiki}" target="_blank" rel="noopener" title="ChordWikiで検索">ChordWiki検索</a>
+          <a href="${ufret}" target="_blank" rel="noopener" title="U-FRETで検索">U-FRET検索</a>
+          <a href="${jlyric}" target="_blank" rel="noopener" title="歌詞サイトで検索">歌詞検索</a>
+        </span>`;
+    }
 
     // Recent played in localStorage
     const RECENT_KEY = 'songlist_recent_v1';
@@ -139,7 +156,7 @@
       try{
         const list = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
         const item = {t:title, u:url, ts:Date.now()};
-        const filtered = list.filter(x => x.t!==title); // dedupe by title
+        const filtered = list.filter(x => x.t!==title);
         filtered.unshift(item);
         localStorage.setItem(RECENT_KEY, JSON.stringify(filtered.slice(0,8)));
         renderRecent();
@@ -152,10 +169,7 @@
         box.innerHTML = list.map(x => `<button class="rbtn" onclick="openSong('${escapeHTML(x.t)}','${escapeHTML(x.u||'')}')">${escapeHTML(x.t)}</button>`).join('');
       }catch(e){}
     }
-
-    function openSong(title, url){
-      if(url){ window.open(url, '_blank', 'noopener'); pushRecent(title, url); }
-    }
+    function openSong(title, url){ if(url){ window.open(url, '_blank', 'noopener'); pushRecent(title, url); } }
 
     // ===== Rendering =====
     function renderHeader(headers){
@@ -167,14 +181,15 @@
       if(!data || data.length<=1){ tbody.innerHTML = `<tr><td colspan="99" style="color:#9aa3b2">データがありません。</td></tr>`; setCounts(0); return; }
       const body = data.slice(1).map(r=>{
         const url = (linkCol>=0 ? sanitizeURL(r[linkCol]) : '');
-        const st  = (stateCol>=0 ? (r[stateCol]||'').trim() : '');
-        const stClass = st==='練習中' ? 'st-practice' : (st==='対応可' ? 'st-ok' : (st==='伴奏のみ' ? 'st-ens' : ''));
-        const rowCls = st==='伴奏のみ' ? ' class="row-ens"' : '';
         let tds = '';
         for(let i=0;i<(rows[0]?.length||0); i++){
           const h = rows[0][i]||''; const c = r[i] ?? '';
           if(i===titleCol){
-            const titleHTML = url ? `<a href="#" onclick="openSong('${escapeHTML(c)}','${url}')">${escapeHTML(c)}</a>` : escapeHTML(c);
+            const title = c || '';
+            const artist = (artistCol>=0 ? (r[artistCol]||"") : "");
+            const titleHTML = url
+              ? `<a href="#" onclick="openSong('${escapeHTML(title)}','${url}')">${escapeHTML(title)}</a>`
+              : `${escapeHTML(title)}${buildQuickLinks(title, artist)}`;
             tds += `<td class="link">${titleHTML}</td>`;
           } else if(i===noteCol && (c+'').trim()){
             tds += `<td><span class="badge">${escapeHTML(c)}</span></td>`;
@@ -182,7 +197,7 @@
             tds += `<td>${escapeHTML(c)}</td>`;
           }
         }
-        return `<tr${rowCls}>${tds}</tr>`;
+        return `<tr>${tds}</tr>`;
       }).join('');
       tbody.innerHTML = body;
       setCounts(data.length-1);
@@ -208,7 +223,7 @@
       const p = document.getElementById('fPractice').checked;
       const o = document.getElementById('fOk').checked;
       const e = document.getElementById('fEns').checked;
-      if(stateCol<0 || (!p && !o && !e)) return allRows; // 何も選ばれてなければ全表示
+      if(stateCol<0 || (!p && !o && !e)) return allRows;
       const allowed = new Set(); if(p) allowed.add('練習中'); if(o) allowed.add('対応可'); if(e) allowed.add('伴奏のみ');
       return [allRows[0]].concat(allRows.slice(1).filter(r => allowed.has(((r[stateCol]||'').trim()))));
     }
@@ -240,13 +255,10 @@
     fOk.addEventListener('change', rerender);
     fEns.addEventListener('change', rerender);
 
-    // 本番モード切替
+    // 本番モード切替（初期ON＝対応可のみ表示）
     stageToggle.addEventListener('change', ()=>{
       document.body.classList.toggle('stage', stageToggle.checked);
-      if(stageToggle.checked){
-        // 本番は「対応可のみ」自動ON、他はOFF
-        fOk.checked = true; fPractice.checked=false; fEns.checked=false;
-      }
+      if(stageToggle.checked){ fOk.checked = true; fPractice.checked=false; fEns.checked=false; }
       rerender();
     });
 
@@ -258,14 +270,17 @@
         if(!parsed.length) throw new Error('Empty CSV');
         rows = parsed;
         const header = rows[0].map(h=> (h||'').toString().trim());
+
         // 列検出（順不同OK）
         titleCol = header.findIndex(h=> /曲名/.test(h));
         noteCol  = header.findIndex(h=> /備考|タグ/.test(h));
         linkCol  = header.findIndex(h=> /リンク先|url|link/i.test(h));
         stateCol = header.findIndex(h=> /状態/.test(h));
+        artistCol= header.findIndex(h=> /アーティスト|歌手|artist/i.test(h));
+
         document.getElementById('thead').innerHTML = header.map(h=>`<th>${escapeHTML(h)}</th>`).join('');
 
-        // 初期：本番モードON（対応可のみ表示）にしたい場合はtrueに
+        // 初期：本番モードON → 「対応可のみ」表示
         const STAGE_DEFAULT = true;
         if(STAGE_DEFAULT){ stageToggle.checked = true; document.body.classList.add('stage'); fOk.checked=true; fPractice.checked=false; fEns.checked=false; }
 
