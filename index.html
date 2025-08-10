@@ -16,31 +16,51 @@
     .header{position:sticky; top:0; z-index:20; backdrop-filter:saturate(150%) blur(8px); background:color-mix(in hsl, var(--bg) 85%, transparent); border-bottom:1px solid var(--border)}
     .header .inner{max-width:1100px; margin:auto; padding:10px 16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap}
     h1{margin:0; font-size:18px}
+
     .pill{display:flex; align-items:center; gap:8px; border:1px solid var(--border); background:var(--panel); padding:8px 12px; border-radius:999px; flex:1}
-    .pill input{all:unset; width:100%; color:var(--text)} .pill input::placeholder{color:var(--muted)}
+    .pill input{all:unset; width:100%; color:var(--text)}
+    .pill input::placeholder{color:var(--muted)}
+
     .btn{appearance:none; border:1px solid var(--border); background:var(--panel); color:var(--text); padding:8px 12px; border-radius:12px; cursor:pointer}
     .btn:hover{border-color:var(--accent)}
+
     .wrap{max-width:1100px; margin:auto; padding:12px 16px}
+
     .filters{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:8px 0 10px}
     .chip{display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; border:1px solid var(--border); background:var(--panel); color:var(--text); font-size:13px}
     .chip input{accent-color:var(--accent)}
+
     .card{background:var(--panel); border:1px solid var(--border); border-radius:16px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,.25)}
     table{border-collapse:collapse; width:100%}
     th,td{padding:10px 12px; text-align:left}
     th{font-weight:600; color:var(--muted); border-bottom:1px solid var(--border); background:linear-gradient(to bottom, color-mix(in hsl, var(--panel) 92%, transparent), var(--panel)); position:sticky; top:66px; z-index:10}
     tr:nth-child(even) td{background:var(--zebra)}
     tbody tr:hover td{background:color-mix(in hsl, var(--zebra) 70%, var(--panel))}
+
     .badge{display:inline-block; padding:2px 8px; border-radius:999px; background:var(--badge-bg); color:var(--badge-text); border:1px solid var(--border); font-size:12px}
-    .link a{color:var(--accent); text-decoration:none} .link a:hover{text-decoration:underline}
+
+    .link a{color:var(--accent); text-decoration:none}
+    .link a:hover{text-decoration:underline}
+
     .side{display:flex; gap:12px; flex-wrap:wrap; align-items:center}
-    .switch{display:inline-flex; align-items:center; gap:8px} .switch input{accent-color:var(--accent)}
-    body.stage .pill{padding:12px 16px} body.stage h1{font-size:20px}
+    .switch{display:inline-flex; align-items:center; gap:8px}
+    .switch input{accent-color:var(--accent)}
+
+    /* 本番モード（でか文字・見やすさ重視） */
+    body.stage .pill{padding:12px 16px}
+    body.stage h1{font-size:20px}
     body.stage th, body.stage td{padding:14px 14px; font-size:18px}
     body.stage .btn, body.stage .chip{padding:10px 14px; font-size:16px}
     body.stage .header .inner{gap:12px}
-    .recent{display:flex; flex-wrap:wrap; gap:8px} .recent .rbtn{border:1px solid var(--border); background:var(--panel); color:var(--text); padding:6px 10px; border-radius:999px; cursor:pointer}
-    .quick-links{display:inline-flex; gap:.25rem; margin-left:.5rem; flex-wrap:wrap}
-    .quick-links a{font-size:12px; padding:2px 6px; border:1px solid var(--border); border-radius:6px; text-decoration:none; color:var(--text); background:var(--panel)}
+
+    /* 最近ひいた曲 */
+    .recent{display:flex; flex-wrap:wrap; gap:8px}
+    .recent .rbtn{border:1px solid var(--border); background:var(--panel); color:var(--text); padding:6px 10px; border-radius:999px; cursor:pointer}
+
+    /* クイック検索ボタン（リンク無し時） */
+    .quick-links { display:inline-flex; gap:.25rem; margin-left:.5rem; flex-wrap:wrap; }
+    .quick-links a { font-size:12px; padding:2px 6px; border:1px solid var(--border); border-radius:6px; text-decoration:none; color:var(--text); background:var(--panel); }
+
     @media (max-width:640px){ th{top:108px} }
   </style>
 </head>
@@ -65,6 +85,7 @@
       <span class="chip"><input type="checkbox" id="fPractice"> 練習中のみ</span>
       <span class="chip"><input type="checkbox" id="fOk"> 対応可のみ</span>
       <span class="chip"><input type="checkbox" id="fEns"> 伴奏のみ</span>
+      <span class="chip"><input type="checkbox" id="fOriginal"> オリジナルのみ</span>
       <span class="chip" id="countChip">全件数: <b id="countAll">0</b> / 表示: <b id="countShown">0</b></span>
     </div>
 
@@ -83,12 +104,13 @@
 
     <p style="color:var(--muted); font-size:13px; margin:12px 2px">
       ※ CSVヘッダ例：<code>状態,曲名,アーティスト,ジャンル,備考,リンク先,コードURL</code>（順不同OK）  
-      ※ オリジナル曲は「備考」に <code>オリジナル</code> を含めると検索ボタンを出さず、<code>コードURL</code>があれば「自分のコード」ボタンを表示します。
+      ※ オリジナル曲は「備考」に <code>オリジナル</code> を含めると検索ボタンを出さず、<code>コードURL</code>があれば「自分のコード」ボタンを表示。  
+      ※ 表では <code>リンク先</code> / <code>コードURL</code> 列は非表示にしています。
     </p>
   </div>
 
   <script>
-    // ---- CSV parser（, or \t 自動判定 / ダブルクォート対応）----
+    // ---- CSV/TSV parser（区切り自動判定・ダブルクォート対応）----
     function parseCSV(text){
       const first = (text.split(/\r?\n/)[0]||'');
       const delim = ((first.match(/,/g)||[]).length >= (first.match(/\t/g)||[]).length) ? ',' : '\t';
@@ -120,7 +142,9 @@
 
     // Quick-search buttons（リンク無しの通常曲用）
     function buildQuickLinks(title, artist){
-      const q = enc(`${title} ${artist}`);
+      const t=(title||'').trim();
+      if(!t) return ''; // 曲名空なら出さない（安全弁）
+      const q = enc(`${t} ${(artist||'').trim()}`);
       const chordwiki = `https://www.google.com/search?q=site:ja.chordwiki.org+${q}`;
       const ufret     = `https://www.google.com/search?q=site:ufret.jp+${q}`;
       const jlyric    = `https://www.google.com/search?q=site:j-lyric.net+${q}`;
@@ -148,46 +172,48 @@
     function openSong(title,url){ if(url){ window.open(url,'_blank','noopener'); pushRecent(title,url); } }
 
     // ---- Rendering ----
-    function renderHeader(headers){
-      document.getElementById('thead').innerHTML=headers.map(h=>`<th>${escapeHTML(h)}</th>`).join('');
+    function renderHeader(headers, showIdx){
+      const h = showIdx.map(i => headers[i]);
+      document.getElementById('thead').innerHTML = h.map(x=>`<th>${escapeHTML(x)}</th>`).join('');
     }
 
-    function renderBody(data){
+    function renderBody(data, showIdx){
       const tbody=document.getElementById('tbody');
       if(!data || data.length<=1){ tbody.innerHTML=`<tr><td colspan="99" style="color:#9aa3b2">データがありません。</td></tr>`; setCounts(0); return; }
-      const body=data.slice(1).map(r=>{
+
+      // 曲名が空の行は描画しない（安全弁）
+      const rowsOnlyWithTitle = data.slice(1).filter(r => ((r[titleCol]||'').toString().trim() !== ''));
+
+      const body = rowsOnlyWithTitle.map(r=>{
         const url     =(linkCol>=0 ? sanitizeURL(r[linkCol])  : '');
         const codeUrl =(codeCol>=0 ? sanitizeURL(r[codeCol])  : '');
-        let tds='';
-        for(let i=0;i<(rows[0]?.length||0); i++){
-          const c=r[i] ?? '';
+        const tds = showIdx.map(i=>{
+          const c = r[i] ?? '';
           if(i===titleCol){
-            const title=(c||'').trim();
-            const artist=(artistCol>=0 ? (r[artistCol]||'') : '');
+            const title  = (c||'').toString().trim();
+            const artist = (artistCol>=0 ? (r[artistCol]||'') : '');
             let titleHTML = escapeHTML(title);
-            if(title){
-              if(url){ // 直リンク優先
-                titleHTML = `<a href="#" onclick="openSong('${escapeHTML(title)}','${url}')">${escapeHTML(title)}</a>`;
-              } else if(isOriginal(r)){ // オリジナル：検索出さずコードURLのみ
-                titleHTML = codeUrl
-                  ? `${escapeHTML(title)} <span class="quick-links"><a href="${codeUrl}" target="_blank" rel="noopener">自分のコード</a></span>`
-                  : `${escapeHTML(title)} <span class="badge">準備中</span>`;
-              } else { // 通常曲：クイック検索
-                titleHTML = `${escapeHTML(title)}${buildQuickLinks(title, artist)}`;
-              }
-            } else {
-              titleHTML = ''; // タイトル空なら何も表示しない
+            if(url){ // 直リンク優先
+              titleHTML = `<a href="#" onclick="openSong('${escapeHTML(title)}','${url}')">${escapeHTML(title)}</a>`;
+            } else if(isOriginal(r)){ // オリジナル：自コード or 準備中
+              titleHTML = codeUrl
+                ? `${escapeHTML(title)} <span class="quick-links"><a href="${codeUrl}" target="_blank" rel="noopener">自分のコード</a></span>`
+                : `${escapeHTML(title)} <span class="badge">準備中</span>`;
+            } else { // 通常曲：クイック検索
+              titleHTML = `${escapeHTML(title)}${buildQuickLinks(title, artist)}`;
             }
-            tds += `<td class="link">${titleHTML}</td>`;
+            return `<td class="link">${titleHTML}</td>`;
           } else if(i===noteCol && (c+'').trim()){
-            tds += `<td><span class="badge">${escapeHTML(c)}</span></td>`;
+            return `<td><span class="badge">${escapeHTML(c)}</span></td>`;
           } else {
-            tds += `<td>${escapeHTML(c)}</td>`;
+            return `<td>${escapeHTML(c)}</td>`;
           }
-        }
+        }).join('');
         return `<tr>${tds}</tr>`;
       }).join('');
-      tbody.innerHTML=body; setCounts(data.length-1);
+
+      tbody.innerHTML = body;
+      setCounts(rowsOnlyWithTitle.length);
     }
 
     // ---- Search / Sort / Filters ----
@@ -212,14 +238,29 @@
       const allowed=new Set(); if(p)allowed.add('練習中'); if(o)allowed.add('対応可'); if(e)allowed.add('伴奏のみ');
       return [allRows[0]].concat(allRows.slice(1).filter(r => allowed.has(((r[stateCol]||'').trim()))));
     }
+    function applyOriginalFilter(allRows){
+      const on=document.getElementById('fOriginal').checked;
+      if(!on) return allRows;
+      return [allRows[0]].concat(allRows.slice(1).filter(r => isOriginal(r)));
+    }
+
     function setCounts(shown){
       document.getElementById('countAll').textContent=Math.max(0,(rows.length-1));
       document.getElementById('countShown').textContent=shown;
     }
+
     function rerender(){
-      const sorted=sortByTitle(rows);
-      const filtered=applyStateFilter(applySearch(sorted, document.getElementById('searchBox').value));
-      renderBody(filtered);
+      const sorted   = sortByTitle(rows);
+      const afterSearch = applySearch(sorted, document.getElementById('searchBox').value);
+      const afterState  = applyStateFilter(afterSearch);
+      const finalRows   = applyOriginalFilter(afterState);
+
+      // 表示対象の列（リンク先/コードURL列は隠す）
+      const header = rows[0];
+      const showIdx = header.map((_,i)=>i).filter(i => i!==linkCol && i!==codeCol);
+
+      renderHeader(header, showIdx);
+      renderBody(finalRows, showIdx);
     }
 
     // ---- Events ----
@@ -229,12 +270,22 @@
     const fPractice=document.getElementById('fPractice');
     const fOk=document.getElementById('fOk');
     const fEns=document.getElementById('fEns');
+    const fOriginal=document.getElementById('fOriginal');
     const stageToggle=document.getElementById('stageToggle');
+
     searchBox.addEventListener('input', rerender);
     sortBtn.addEventListener('click', ()=>{ sortAsc=!sortAsc; sortBtn.textContent=sortAsc?'曲名A→Z':'曲名Z→A'; rerender(); });
     darkToggle.addEventListener('change', ()=>{ document.documentElement.style.colorScheme=darkToggle.checked?'dark':'light'; });
-    fPractice.addEventListener('change', rerender); fOk.addEventListener('change', rerender); fEns.addEventListener('change', rerender);
-    stageToggle.addEventListener('change', ()=>{ document.body.classList.toggle('stage', stageToggle.checked); if(stageToggle.checked){ fOk.checked=true; fPractice.checked=false; fEns.checked=false; } rerender(); });
+    fPractice.addEventListener('change', rerender);
+    fOk.addEventListener('change', rerender);
+    fEns.addEventListener('change', rerender);
+    fOriginal.addEventListener('change', rerender);
+
+    stageToggle.addEventListener('change', ()=>{
+      document.body.classList.toggle('stage', stageToggle.checked);
+      if(stageToggle.checked){ fOk.checked = true; fPractice.checked=false; fEns.checked=false; }
+      rerender();
+    });
 
     // ---- Load CSV ----
     (function load(){
@@ -242,17 +293,24 @@
       fetch(encodeURI('弾き語り曲リスト.csv') + '?v=' + v).then(r=>r.text()).then(text=>{
         const parsed=parseCSV(text.trim()); if(!parsed.length) throw new Error('Empty CSV');
         rows=parsed;
+
+        // ヘッダ（BOM除去）
         const header=rows[0].map(h => (h||'').toString().replace(/^\uFEFF/, '').trim());
+
+        // 列検出（順不同OK）
         titleCol = header.findIndex(h=>/曲名/.test(h));
         noteCol  = header.findIndex(h=>/備考|タグ/.test(h));
         stateCol = header.findIndex(h=>/状態/.test(h));
         artistCol= header.findIndex(h=>/アーティスト|歌手|artist/i.test(h));
         linkCol  = header.findIndex(h=>/リンク先|url|link/i.test(h));
         codeCol  = header.findIndex(h=>/コードURL|自.?コード|score|chart/i.test(h));
-        renderHeader(header);
+
+        // 初期：本番モードON → 「対応可のみ」表示
         const STAGE_DEFAULT=true;
         if(STAGE_DEFAULT){ stageToggle.checked=true; document.body.classList.add('stage'); fOk.checked=true; fPractice.checked=false; fEns.checked=false; }
-        renderRecent(); rerender();
+
+        renderRecent();
+        rerender();
       }).catch(err=>{
         console.error(err);
         document.getElementById('tbody').innerHTML='<tr><td colspan="99" style="color:#9aa3b2">CSV読み込みに失敗しました。ヘッダ名とファイル名をご確認ください。</td></tr>';
@@ -261,25 +319,5 @@
   </script>
 </body>
 </html>
-
-<span class="chip"><input type="checkbox" id="fOriginal"> オリジナルのみ</span>
-// 既存のイベント群にこれ追加
-document.getElementById('fOriginal').addEventListener('change', rerender);
-
-// フィルタ処理にオリジナル条件を合成
-function applyOriginalFilter(allRows){
-  const on = document.getElementById('fOriginal')?.checked;
-  if(!on) return allRows;
-  return [allRows[0]].concat(allRows.slice(1).filter(r => isOriginal(r)));
-}
-
-// rerender() 内の並びをこう（検索→状態→オリジナルの順で）
-function rerender(){
-  const sorted = sortByTitle(rows);
-  const afterSearch = applySearch(sorted, document.getElementById('searchBox').value);
-  const afterState  = applyStateFilter(afterSearch);
-  const finalRows   = applyOriginalFilter(afterState);
-  renderBody(finalRows);
-}
 
 
