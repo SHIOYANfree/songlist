@@ -93,6 +93,10 @@
     function norm(s){
       return (s ?? '').toString().normalize('NFKC').replace(/\s+/g,' ').trim();
     }
+    // ひらがな→カタカナ（さらに表記ゆれを吸収）
+    function toKana(s){
+      return (s||'').replace(/[\u3041-\u3096]/g, ch => String.fromCharCode(ch.charCodeAt(0)+0x60));
+    }
 
     // ---- CSV/TSV parser（区切り自動判定・ダブルクォート対応）----
     function parseCSV(text){
@@ -115,12 +119,13 @@
     let titleCol=-1, noteCol=-1, stateCol=-1, artistCol=-1, linkCol=-1, codeCol=-1;
 
     // ---- Helpers ----
-    function escapeHTML(s){ return (s??'').replace(/[&<>\"']/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m])); }
+    function escapeHTML(s){ return (s??'').replace(/[&<>\"']/g, m=>({"&":"&amp;","<":"&lt;",";">":"&gt;","\"":"&quot;","'":"&#39;"}[m])); }
     function sanitizeURL(u){ try{ const url=new URL((u||'').trim()); if(url.protocol==='http:'||url.protocol==='https:') return url.href; }catch{} return ''; }
     function enc(s){ return encodeURIComponent(norm(s)); }
+
     function isOriginal(row){
-      const artist = (artistCol>=0 ? norm(row[artistCol]) : '');
-      const note   = (noteCol>=0 ? norm(row[noteCol])   : '');
+      const artist = (artistCol>=0 ? toKana(norm(row[artistCol])) : '');
+      const note   = (noteCol>=0 ? toKana(norm(row[noteCol]))   : '');
       return note.includes('オリジナル') || /しおやん|shioyan/i.test(artist);
     }
 
@@ -176,13 +181,18 @@
             const title  = norm(c);
             const artist = (artistCol>=0 ? r[artistCol] : '');
             let titleHTML = escapeHTML(title);
-            if(url){ // 直リンク優先
+
+            if (url) {
+              // 直リンク（ChordWiki等）
               titleHTML = `<a href="#" onclick="openSong('${escapeHTML(title)}','${url}')">${escapeHTML(title)}</a>`;
-            } else if(isOriginal(r)){ // オリジナル：自コード or 準備中
-              titleHTML = codeUrl
-                ? `${escapeHTML(title)} <span class="quick-links"><a href="${codeUrl}" target="_blank" rel="noopener">自分のコード</a></span>`
-                : `${escapeHTML(title)} <span class="badge">準備中</span>`;
-            } else { // 通常曲：クイック検索
+            } else if (codeUrl) {
+              // オリジナルか否かに関係なく、コードURLがあれば最優先で表示
+              titleHTML = `${escapeHTML(title)} <span class="quick-links"><a href="${codeUrl}" target="_blank" rel="noopener">自分のコード</a></span>`;
+            } else if (isOriginal(r)) {
+              // オリジナルでコードURLなし→準備中表示
+              titleHTML = `${escapeHTML(title)} <span class="badge">準備中</span>`;
+            } else {
+              // 通常曲：クイック検索ボタン
               titleHTML = `${escapeHTML(title)}${buildQuickLinks(title, artist)}`;
             }
             return `<td class="link">${titleHTML}</td>`;
