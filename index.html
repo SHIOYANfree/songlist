@@ -46,7 +46,7 @@
     .switch{display:inline-flex; align-items:center; gap:8px}
     .switch input{accent-color:var(--accent)}
 
-    /* 本番モード（でか文字・見やすさ重視） */
+    /* 本番モード（大きめUI） */
     body.stage .pill{padding:12px 16px}
     body.stage h1{font-size:20px}
     body.stage th, body.stage td{padding:14px 14px; font-size:18px}
@@ -80,7 +80,7 @@
 
   <div class="wrap">
     <div class="filters">
-      <!-- 「のみ」を外したラベルに変更 -->
+      <!-- “含めるカテゴリ” 方式 -->
       <span class="chip"><input type="checkbox" id="fPractice"> 練習中</span>
       <span class="chip"><input type="checkbox" id="fOk"> 対応可</span>
       <span class="chip"><input type="checkbox" id="fEns"> 伴奏のみ</span>
@@ -109,11 +109,22 @@
   </div>
 
   <script>
-    // ---- 正規化 ----
-    function norm(s){ return (s ?? '').toString().normalize('NFKC').replace(/\s+/g,' ').trim(); }
-    function toKana(s){ return (s||'').replace(/[\u3041-\u3096]/g, ch => String.fromCharCode(ch.charCodeAt(0)+0x60)); }
+    /* ---------- 正規化まわり ---------- */
+    function norm(s){
+      return (s ?? '')
+        .toString()
+        .normalize('NFKC')      // 全半角・濁点結合などを正規化
+        .replace(/\s+/g,' ')    // 連続スペース/改行を1つの空白に
+        .trim();
+    }
+    // ひらがな→カタカナ
+    function toKana(s){
+      return (s||'').replace(/[\u3041-\u3096]/g, ch =>
+        String.fromCharCode(ch.charCodeAt(0)+0x60)
+      );
+    }
 
-    // ---- CSV/TSV parser ----
+    /* ---------- CSV/TSV parser ---------- */
     function parseCSV(text){
       const first = (text.split(/\r?\n/)[0]||'');
       const delim = ((first.match(/,/g)||[]).length >= (first.match(/\t/g)||[]).length) ? ',' : '\t';
@@ -129,15 +140,16 @@
       return rows;
     }
 
-    // ---- State ----
+    /* ---------- State ---------- */
     let rows=[]; let sortAsc=true;
     let titleCol=-1, noteCol=-1, stateCol=-1, artistCol=-1, linkCol=-1, codeCol=-1;
 
-    // ---- Helpers ----
+    /* ---------- Helpers ---------- */
     function escapeHTML(s){ return (s??'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
     function sanitizeURL(u){ try{ const url=new URL((u||'').trim()); if(url.protocol==='http:'||url.protocol==='https:') return url.href; }catch{} return ''; }
     function enc(s){ return encodeURIComponent(norm(s)); }
 
+    // ★ オリジナル判定（備考を norm + toKana 済みで評価）
     function isOriginal(row){
       const artist = (artistCol>=0 ? toKana(norm(row[artistCol])) : '');
       const note   = (noteCol>=0 ? toKana(norm(row[noteCol]))   : '');
@@ -157,7 +169,7 @@
       </span>`;
     }
 
-    // 最近ひいた
+    /* ---------- 最近ひいた ---------- */
     const RECENT_KEY='songlist_recent_v1';
     function pushRecent(title,url){ try{
       const list=JSON.parse(localStorage.getItem(RECENT_KEY)||'[]');
@@ -173,7 +185,7 @@
     }catch{} }
     function openSong(title,url){ if(url){ window.open(url,'_blank','noopener'); pushRecent(title,url); } }
 
-    // ---- Rendering ----
+    /* ---------- Rendering ---------- */
     function renderHeader(headers, showIdx){
       const h = showIdx.map(i => headers[i]);
       document.getElementById('thead').innerHTML = h.map(x=>`<th>${escapeHTML(x)}</th>`).join('');
@@ -220,7 +232,7 @@
       setCounts(rowsOnlyWithTitle.length);
     }
 
-    // ---- Search / Sort / Filters ----
+    /* ---------- Search / Sort / Filters ---------- */
     function applySearch(allRows, keyword){
       const k = toKana(norm(keyword));
       if(!k) return allRows;
@@ -240,14 +252,13 @@
       }));
     }
 
-    // ★ 新しいカテゴリ絞り込み（チェックされた項目を“含める”）
+    // 含めるカテゴリ（チェックされたものの和集合）
     function applyCategoryFilter(allRows){
       const selPractice = document.getElementById('fPractice').checked;
       const selOk       = document.getElementById('fOk').checked;
       const selEns      = document.getElementById('fEns').checked;
       const selOrig     = document.getElementById('fOriginal').checked;
 
-      // 1つも選ばれていなければ0件（ヘッダだけ返す）
       if(!selPractice && !selOk && !selEns && !selOrig) return [allRows[0]];
 
       return [allRows[0]].concat(allRows.slice(1).filter(r=>{
@@ -271,7 +282,7 @@
       const afterSearch  = applySearch(sorted, document.getElementById('searchBox').value);
       const afterFilter  = applyCategoryFilter(afterSearch);
 
-      // 表示対象の列（リンク先/コードURL列は隠す）＋保険
+      // 表示列（リンク先/コードURLを隠す）＋保険
       const header = rows[0];
       let showIdx = header.map((_,i)=>i).filter(i => i!==linkCol && i!==codeCol);
       if (showIdx.length === 0) showIdx = header.map((_,i)=>i);
@@ -280,7 +291,7 @@
       renderBody(afterFilter, showIdx);
     }
 
-    // ---- Events ----
+    /* ---------- Events ---------- */
     const searchBox=document.getElementById('searchBox');
     const sortBtn=document.getElementById('sortBtn');
     const darkToggle=document.getElementById('darkToggle');
@@ -300,14 +311,14 @@
 
     stageToggle.addEventListener('change', ()=>{
       document.body.classList.toggle('stage', stageToggle.checked);
-      // 本番モード時の初期値（必要ならここで既定のON/OFFを変更）
       if(stageToggle.checked){
+        // 起動既定：本番は「対応可」だけON（好みに応じて変更可）
         fPractice.checked=false; fOk.checked=true; fEns.checked=false; fOriginal.checked=false;
       }
       rerender();
     });
 
-    // ---- Load CSV ----
+    /* ---------- Load CSV ---------- */
     (function load(){
       const v=Date.now();
       fetch(encodeURI('弾き語り曲リスト.csv') + '?v=' + v).then(r=>r.text()).then(text=>{
@@ -328,7 +339,7 @@
           else if (header.length > 1) titleCol = 0;
         }
 
-        // 初期状態（通常は全部OFF=0件になると困るのでとりあえず対応可のみON）
+        // 初期：本番モードON（必要ならここで初期チェック変更）
         const STAGE_DEFAULT=true;
         if(STAGE_DEFAULT){
           stageToggle.checked=true; document.body.classList.add('stage');
@@ -345,4 +356,3 @@
   </script>
 </body>
 </html>
-
