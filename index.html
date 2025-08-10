@@ -5,85 +5,46 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>しおやんの弾き語りリスト</title>
   <style>
-    :root{
-      --bg:#0b0c0f; --panel:#12141a; --text:#e7e9ee; --muted:#9aa3b2; --accent:#5ac8fa; --border:#242833; --zebra:#0f1117;
-      --chip-bg:#1e2633; --chip-text:#c8d1e6; --focus:#8ee1ff;
+    body {
+      font-family: sans-serif;
+      margin: 1rem;
     }
-    @media (prefers-color-scheme: light){
-      :root{ --bg:#f7f8fb; --panel:#ffffff; --text:#0b0c0f; --muted:#5b6472; --accent:#007aff; --border:#e6e8ee; --zebra:#f3f5f9; --chip-bg:#eef2f7; --chip-text:#334155; --focus:#88c6ff; }
+    table {
+      border-collapse: collapse;
+      width: 100%;
     }
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{margin:0; background:var(--bg); color:var(--text); font:16px/1.6 system-ui, -apple-system, Segoe UI, Roboto, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;}
-    .wrap{max-width:980px; margin-inline:auto; padding:24px;}
-
-    /* Header */
-    .header{position:sticky; top:0; z-index:10; backdrop-filter:saturate(150%) blur(8px); background:color-mix(in hsl, var(--bg) 85%, transparent); border-bottom:1px solid var(--border);}
-    .header .inner{display:flex; gap:12px; align-items:center; max-width:980px; margin:auto; padding:12px 24px;}
-    h1{font-size:20px; margin:0; letter-spacing:.02em}
-    .pill{border:1px solid var(--border); background:var(--panel); padding:8px 12px; border-radius:999px; display:flex; align-items:center; gap:8px;}
-    .pill input{all:unset; width:260px; color:var(--text)}
-    .pill input::placeholder{color:var(--muted)}
-    .btn{appearance:none; border:1px solid var(--border); background:var(--panel); color:var(--text); padding:8px 12px; border-radius:12px; cursor:pointer}
-    .btn:hover{border-color:var(--accent)}
-
-    /* Controls */
-    .controls{display:flex; flex-wrap:wrap; gap:8px; margin:16px 0 8px}
-    .chip{display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px; background:var(--chip-bg); color:var(--chip-text); font-size:12px; border:1px solid var(--border)}
-    .chip button{all:unset; cursor:pointer; padding:0 4px; opacity:.7}
-    .chip button:hover{opacity:1}
-
-    /* Table */
-    .card{background:var(--panel); border:1px solid var(--border); border-radius:16px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,.25)}
-    table{border-collapse:collapse; width:100%}
-    th, td{padding:12px 14px; text-align:left;}
-    th{font-weight:600; color:var(--muted); border-bottom:1px solid var(--border); background:linear-gradient(to bottom, color-mix(in hsl, var(--panel) 92%, transparent), var(--panel)); position:sticky; top:54px; z-index:1}
-    tr:nth-child(even) td{background:var(--zebra)}
-    tbody tr:hover td{background:color-mix(in hsl, var(--zebra) 70%, var(--panel));}
-    .badge{display:inline-block; padding:2px 8px; border-radius:999px; background:var(--chip-bg); color:var(--chip-text); border:1px solid var(--border); font-size:12px}
-    .muted{color:var(--muted)}
-
-    /* Footer */
-    .footer{color:var(--muted); font-size:13px; margin:14px 0}
-
-    /* Dark-mode toggle */
-    .toggle{display:inline-flex; align-items:center; gap:8px}
-    .toggle input{accent-color:var(--accent)}
-
-    @media (max-width:640px){
-      .pill input{width:160px}
-      th{top:92px}
+    th, td {
+      border: 1px solid #ccc;
+      padding: 0.5rem;
+      text-align: left;
+    }
+    th {
+      background: #f0f0f0;
+    }
+    .muted {
+      color: #777;
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.2rem 0.5rem;
+      background: #ddd;
+      border-radius: 0.5rem;
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <div class="inner">
-      <h1>しおやんの弾き語りリスト</h1>
-      <div class="pill" style="flex:1">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M21 21L16.65 16.65M19 11C19 15.4183 15.4183 19 11 19C6.58172 19 3 15.4183 3 11C3 6.58172 6.58172 3 11 3C15.4183 3 19 6.58172 19 11Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <input id="searchBox" placeholder="曲名・アーティスト・備考で検索（スペース区切りでAND）" />
-      </div>
-      <button id="sortBtn" class="btn" title="曲名で並び替え">曲名A→Z</button>
-      <label class="toggle"><input id="darkToggle" type="checkbox" /> ダーク</label>
-    </div>
-  </div>
-
-  <div class="wrap">
-    <div class="controls" id="activeChips" aria-live="polite"></div>
-    <div class="card">
-      <table>
-        <thead>
-          <tr id="thead"></tr>
-        </thead>
-        <tbody id="tbody"></tbody>
-      </table>
-    </div>
-    <div class="footer">更新は <span class="muted">弾き語り曲リスト.csv</span> を同名で上書きアップロードすればOK。QRはそのまま使えます。</div>
-  </div>
+  <h1>しおやんの弾き語りリスト</h1>
+  <input id="searchBox" type="text" placeholder="検索（スペース区切りでAND検索）" style="width:60%;" />
+  <button id="sortBtn">曲名A→Z</button>
+  <label><input type="checkbox" id="darkToggle"> ダークモード</label>
+  <table>
+    <thead>
+      <tr id="thead"></tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
 
   <script>
-    // --- Utility: simple CSV parser with quotes ---
     function parseCSV(text){
       const rows=[]; let row=[], cell="", q=false;
       for(let i=0;i<text.length;i++){
@@ -92,21 +53,22 @@
           if(q && text[i+1]==='"'){ cell+='"'; i++; }
           else { q=!q; }
         } else if(ch===',' && !q){ row.push(cell); cell=""; }
-        else if((ch==='\n'||ch==='\r') && !q){ if(cell!==""||row.length){ row.push(cell); rows.push(row); } row=[]; cell=""; }
+        else if((ch==='\n'||ch==='\r') && !q){
+          if(cell!==""||row.length){ row.push(cell); rows.push(row); }
+          row=[]; cell="";
+        }
         else { cell+=ch; }
       }
       if(cell!==""||row.length){ row.push(cell); rows.push(row); }
       return rows;
     }
 
-    // --- State ---
     let rows = [];
     let sortAsc = true;
+    let linkColIndex = -1;
 
-    // --- Rendering ---
     function renderHeader(headers){
-      const thead = document.getElementById('thead');
-      thead.innerHTML = headers.map(h=>`<th>${h}</th>`).join('');
+      document.getElementById('thead').innerHTML = headers.map(h=>`<th>${h}</th>`).join('');
     }
 
     function renderBody(data){
@@ -115,22 +77,26 @@
         tbody.innerHTML = `<tr><td class="muted" colspan="99">データがありません。</td></tr>`;
         return;
       }
-      const bodyRows = data.slice(1).map(r=>{
-        return `<tr>
-          ${r.map((c,i)=> i===2 && c.trim()? `<td><span class="badge">${c}</span></td>` : `<td>${c}</td>`).join('')}
-        </tr>`;
+      tbody.innerHTML = data.slice(1).map(r=>{
+        return `<tr>` + r.map((c,i)=>{
+          if(i===2 && c.trim()){ // 備考欄バッジ
+            return `<td><span class="badge">${c}</span></td>`;
+          } else if(i===0 && linkColIndex>=0 && r[linkColIndex] && /^https?:\/\//i.test(r[linkColIndex].trim())) {
+            // 曲名セル + リンク先
+            const url = r[linkColIndex].trim();
+            return `<td><a href="${url}" target="_blank" rel="noopener noreferrer">${c}</a></td>`;
+          } else {
+            return `<td>${c}</td>`;
+          }
+        }).join('') + `</tr>`;
       }).join('');
-      tbody.innerHTML = bodyRows;
     }
 
-    // --- AND検索対応 ---
     function applySearch(allRows, keyword){
       if(!keyword) return allRows;
-      // 半角/全角スペースで分割し、空要素を除外
-      const keywords = keyword.toLowerCase().split(/[\s\u3000]+/).filter(k => k);
+      const keywords = keyword.toLowerCase().split(/\s+/).filter(k => k);
       return allRows.filter((r,i) => {
-        if(i===0) return true; // ヘッダは常に表示
-        // すべてのキーワードを満たす行だけ残す
+        if(i===0) return true;
         return keywords.every(kw => r.some(c => (c||"").toLowerCase().includes(kw)));
       });
     }
@@ -139,25 +105,19 @@
       const header = allRows[0];
       const idx = header.findIndex(h=>/曲名/.test(h));
       if(idx<0) return allRows;
-      const sorted = [header].concat(allRows.slice(1).sort((a,b)=>{
+      return [header].concat(allRows.slice(1).sort((a,b)=>{
         const A=(a[idx]||"").toLowerCase();
         const B=(b[idx]||"").toLowerCase();
         return sortAsc ? A.localeCompare(B,'ja') : B.localeCompare(A,'ja');
       }));
-      return sorted;
     }
 
-    // --- Controls ---
-    const searchBox = document.getElementById('searchBox');
-    const sortBtn = document.getElementById('sortBtn');
-    const darkToggle = document.getElementById('darkToggle');
-
-    searchBox.addEventListener('input', () => {
+    document.getElementById('searchBox').addEventListener('input', () => {
       const filtered = applySearch(rows, searchBox.value);
       renderBody(filtered);
     });
 
-    sortBtn.addEventListener('click', () => {
+    document.getElementById('sortBtn').addEventListener('click', () => {
       sortAsc = !sortAsc;
       sortBtn.textContent = sortAsc ? '曲名A→Z' : '曲名Z→A';
       const sorted = sortByTitle(rows);
@@ -165,25 +125,24 @@
       renderBody(filtered);
     });
 
-    darkToggle.addEventListener('change', () => {
+    document.getElementById('darkToggle').addEventListener('change', () => {
       document.documentElement.style.colorScheme = darkToggle.checked ? 'dark' : 'light';
     });
 
-    // --- Fetch CSV with cache-buster ---
     (function load(){
       const v = Date.now();
       fetch('弾き語り曲リスト.csv?v='+v)
         .then(res => res.text())
         .then(text => {
-          const parsed = parseCSV(text.trim());
-          if(!parsed.length){ throw new Error('Empty CSV'); }
-          rows = parsed;
-          renderHeader(rows[0]);
+          rows = parseCSV(text.trim());
+          const header = rows[0];
+          linkColIndex = header.findIndex(h => /リンク先|url|link/i.test(h));
+          renderHeader(header);
           const sorted = sortByTitle(rows);
           renderBody(sorted);
         })
         .catch(err => {
-          document.getElementById('tbody').innerHTML = `<tr><td class="muted" colspan="99">CSV読み込みに失敗しました。ファイル名や配置を確認してください。</td></tr>`;
+          document.getElementById('tbody').innerHTML = `<tr><td class="muted" colspan="99">CSV読み込みに失敗しました。</td></tr>`;
           console.error(err);
         });
     })();
