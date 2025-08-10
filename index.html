@@ -56,8 +56,8 @@
     .recent{display:flex; flex-wrap:wrap; gap:8px}
     .recent .rbtn{border:1px solid var(--border); background:var(--panel); color:var(--text); padding:6px 10px; border-radius:999px; cursor:pointer}
 
-    .quick-links{ display:inline-flex; gap:.25rem; margin-left:.5rem; flex-wrap:wrap; }
-    .quick-links a{ font-size:12px; padding:2px 6px; border:1px solid var(--border); border-radius:6px; text-decoration:none; color:var(--text); background:var(--panel); }
+    .quick-links { display:inline-flex; gap:.25rem; margin-left:.5rem; flex-wrap:wrap; }
+    .quick-links a { font-size:12px; padding:2px 6px; border:1px solid var(--border); border-radius:6px; text-decoration:none; color:var(--text); background:var(--panel); }
 
     @media (max-width:640px){ th{top:108px} }
   </style>
@@ -80,10 +80,11 @@
 
   <div class="wrap">
     <div class="filters">
-      <span class="chip"><input type="checkbox" id="fPractice"> 練習中のみ</span>
-      <span class="chip"><input type="checkbox" id="fOk"> 対応可のみ</span>
+      <!-- 「のみ」を外したラベルに変更 -->
+      <span class="chip"><input type="checkbox" id="fPractice"> 練習中</span>
+      <span class="chip"><input type="checkbox" id="fOk"> 対応可</span>
       <span class="chip"><input type="checkbox" id="fEns"> 伴奏のみ</span>
-      <span class="chip"><input type="checkbox" id="fOriginal"> オリジナルのみ</span>
+      <span class="chip"><input type="checkbox" id="fOriginal"> オリジナル</span>
       <span class="chip" id="countChip">全件数: <b id="countAll">0</b> / 表示: <b id="countShown">0</b></span>
     </div>
 
@@ -108,12 +109,11 @@
   </div>
 
   <script>
-    // ---- 正規化：全角/半角・結合濁点などの表記ゆれを吸収 ----
+    // ---- 正規化 ----
     function norm(s){ return (s ?? '').toString().normalize('NFKC').replace(/\s+/g,' ').trim(); }
-    // ひらがな→カタカナ（さらに表記ゆれ吸収）
     function toKana(s){ return (s||'').replace(/[\u3041-\u3096]/g, ch => String.fromCharCode(ch.charCodeAt(0)+0x60)); }
 
-    // ---- CSV/TSV parser（区切り自動判定・ダブルクォート対応）----
+    // ---- CSV/TSV parser ----
     function parseCSV(text){
       const first = (text.split(/\r?\n/)[0]||'');
       const delim = ((first.match(/,/g)||[]).length >= (first.match(/\t/g)||[]).length) ? ',' : '\t';
@@ -138,14 +138,12 @@
     function sanitizeURL(u){ try{ const url=new URL((u||'').trim()); if(url.protocol==='http:'||url.protocol==='https:') return url.href; }catch{} return ''; }
     function enc(s){ return encodeURIComponent(norm(s)); }
 
-    // オリジナル判定（備考に“オリジナル” or アーティストが“しおやん”）
     function isOriginal(row){
       const artist = (artistCol>=0 ? toKana(norm(row[artistCol])) : '');
       const note   = (noteCol>=0 ? toKana(norm(row[noteCol]))   : '');
       return note.includes('オリジナル') || /しおやん|shioyan/i.test(artist);
     }
 
-    // Quick-search buttons（リンク無しの通常曲用）
     function buildQuickLinks(title, artist){
       const t=norm(title); if(!t) return '';
       const q = enc(`${t} ${artist||''}`);
@@ -159,7 +157,7 @@
       </span>`;
     }
 
-    // 最近ひいた（実リンクを開いた曲のみ記録）
+    // 最近ひいた
     const RECENT_KEY='songlist_recent_v1';
     function pushRecent(title,url){ try{
       const list=JSON.parse(localStorage.getItem(RECENT_KEY)||'[]');
@@ -185,7 +183,7 @@
       const tbody=document.getElementById('tbody');
       if(!data || data.length<=1){ tbody.innerHTML=`<tr><td colspan="99" style="color:#9aa3b2">データがありません。</td></tr>`; setCounts(0); return; }
 
-      // ① 曲名が空の行は描画しない（titleColが取れない場合はスキップ）
+      // 曲名空行の安全フィルタ（titleCol 不明時は素通し）
       const rowsOnlyWithTitle = (titleCol >= 0)
         ? data.slice(1).filter(r => norm(r[titleCol]) !== '')
         : data.slice(1);
@@ -199,7 +197,6 @@
             const title  = norm(c);
             const artist = (artistCol>=0 ? r[artistCol] : '');
             let titleHTML = escapeHTML(title);
-
             if (url) {
               titleHTML = `<a href="#" onclick="openSong('${escapeHTML(title)}','${url}')">${escapeHTML(title)}</a>`;
             } else if (codeUrl) {
@@ -225,12 +222,12 @@
 
     // ---- Search / Sort / Filters ----
     function applySearch(allRows, keyword){
-      const k = toKana(norm(keyword)); // 入力もかな正規化
+      const k = toKana(norm(keyword));
       if(!k) return allRows;
       const kws = k.toLowerCase().split(/[\s\u3000]+/).filter(Boolean);
       return allRows.filter((r,i)=>
         i===0 || kws.every(kw =>
-          r.some(c => toKana(norm(c)).toLowerCase().includes(kw)) // セル側もかな正規化
+          r.some(c => toKana(norm(c)).toLowerCase().includes(kw))
         )
       );
     }
@@ -242,18 +239,26 @@
         return sortAsc ? A.localeCompare(B,'ja') : B.localeCompare(A,'ja');
       }));
     }
-    function applyStateFilter(allRows){
-      const p=document.getElementById('fPractice').checked;
-      const o=document.getElementById('fOk').checked;
-      const e=document.getElementById('fEns').checked;
-      if(stateCol<0 || (!p && !o && !e)) return allRows;
-      const allowed=new Set(); if(p)allowed.add('練習中'); if(o)allowed.add('対応可'); if(e)allowed.add('伴奏のみ');
-      return [allRows[0]].concat(allRows.slice(1).filter(r => allowed.has(norm(r[stateCol]))));
-    }
-    function applyOriginalFilter(allRows){
-      const on=document.getElementById('fOriginal').checked;
-      if(!on) return allRows;
-      return [allRows[0]].concat(allRows.slice(1).filter(r => isOriginal(r)));
+
+    // ★ 新しいカテゴリ絞り込み（チェックされた項目を“含める”）
+    function applyCategoryFilter(allRows){
+      const selPractice = document.getElementById('fPractice').checked;
+      const selOk       = document.getElementById('fOk').checked;
+      const selEns      = document.getElementById('fEns').checked;
+      const selOrig     = document.getElementById('fOriginal').checked;
+
+      // 1つも選ばれていなければ0件（ヘッダだけ返す）
+      if(!selPractice && !selOk && !selEns && !selOrig) return [allRows[0]];
+
+      return [allRows[0]].concat(allRows.slice(1).filter(r=>{
+        const st = (stateCol>=0 ? norm(r[stateCol]) : '');
+        const matchState =
+          (selPractice && st==='練習中') ||
+          (selOk       && st==='対応可') ||
+          (selEns      && st==='伴奏のみ');
+        const matchOrig = selOrig && isOriginal(r);
+        return matchState || matchOrig;
+      }));
     }
 
     function setCounts(shown){
@@ -262,18 +267,17 @@
     }
 
     function rerender(){
-      const sorted   = sortByTitle(rows);
-      const afterSearch = applySearch(sorted, document.getElementById('searchBox').value);
-      const afterState  = applyStateFilter(afterSearch);
-      const finalRows   = applyOriginalFilter(afterState);
+      const sorted       = sortByTitle(rows);
+      const afterSearch  = applySearch(sorted, document.getElementById('searchBox').value);
+      const afterFilter  = applyCategoryFilter(afterSearch);
 
-      // ③ 表示対象の列（リンク先/コードURL列は隠す）＋保険
+      // 表示対象の列（リンク先/コードURL列は隠す）＋保険
       const header = rows[0];
       let showIdx = header.map((_,i)=>i).filter(i => i!==linkCol && i!==codeCol);
       if (showIdx.length === 0) showIdx = header.map((_,i)=>i);
 
       renderHeader(header, showIdx);
-      renderBody(finalRows, showIdx);
+      renderBody(afterFilter, showIdx);
     }
 
     // ---- Events ----
@@ -296,7 +300,10 @@
 
     stageToggle.addEventListener('change', ()=>{
       document.body.classList.toggle('stage', stageToggle.checked);
-      if(stageToggle.checked){ fOk.checked = true; fPractice.checked=false; fEns.checked=false; }
+      // 本番モード時の初期値（必要ならここで既定のON/OFFを変更）
+      if(stageToggle.checked){
+        fPractice.checked=false; fOk.checked=true; fEns.checked=false; fOriginal.checked=false;
+      }
       rerender();
     });
 
@@ -307,10 +314,9 @@
         const parsed=parseCSV(text.trim()); if(!parsed.length) throw new Error('Empty CSV');
         rows=parsed;
 
-        // ヘッダ（BOM除去＋正規化）
         const header=rows[0].map(h => norm((h||'').toString().replace(/^\uFEFF/, '')));
 
-        // ② 列検出（順不同OK・候補広め）＋フォールバック
+        // 列検出（広めの候補＋フォールバック）
         titleCol  = header.findIndex(h => /曲名|曲|タイトル|title/i.test(h));
         artistCol = header.findIndex(h => /アーティスト|歌手|artist|歌い手/i.test(h));
         noteCol   = header.findIndex(h => /備考|タグ|メモ|notes?|comment/i.test(h));
@@ -322,9 +328,12 @@
           else if (header.length > 1) titleCol = 0;
         }
 
-        // 初期：本番モードON → 「対応可のみ」表示
+        // 初期状態（通常は全部OFF=0件になると困るのでとりあえず対応可のみON）
         const STAGE_DEFAULT=true;
-        if(STAGE_DEFAULT){ stageToggle.checked=true; document.body.classList.add('stage'); fOk.checked=true; fPractice.checked=false; fEns.checked=false; }
+        if(STAGE_DEFAULT){
+          stageToggle.checked=true; document.body.classList.add('stage');
+          fPractice.checked=false; fOk.checked=true; fEns.checked=false; fOriginal.checked=false;
+        }
 
         renderRecent();
         rerender();
@@ -336,3 +345,4 @@
   </script>
 </body>
 </html>
+
