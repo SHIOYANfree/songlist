@@ -12,34 +12,55 @@
     *{box-sizing:border-box}
     html,body{height:100%}
     body{margin:0; background:var(--bg); color:var(--text); font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif}
+
     .header{position:sticky; top:0; z-index:20; backdrop-filter:saturate(150%) blur(8px); background:color-mix(in hsl, var(--bg) 85%, transparent); border-bottom:1px solid var(--border)}
     .header .inner{max-width:1100px; margin:auto; padding:10px 16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap}
     h1{margin:0; font-size:18px}
+
     .pill{display:flex; align-items:center; gap:8px; border:1px solid var(--border); background:var(--panel); padding:8px 12px; border-radius:999px; flex:1}
-    .pill input{all:unset; width:100%; color:var(--text)} .pill input::placeholder{color:var(--muted)}
+    .pill input{all:unset; width:100%; color:var(--text)}
+    .pill input::placeholder{color:var(--muted)}
+
     .btn{appearance:none; border:1px solid var(--border); background:var(--panel); color:var(--text); padding:8px 12px; border-radius:12px; cursor:pointer}
     .btn:hover{border-color:var(--accent)}
+
     .wrap{max-width:1100px; margin:auto; padding:12px 16px}
+
     .filters{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:8px 0 10px}
     .chip{display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; border:1px solid var(--border); background:var(--panel); color:var(--text); font-size:13px}
     .chip input{accent-color:var(--accent)}
+
     .card{background:var(--panel); border:1px solid var(--border); border-radius:16px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,.25)}
     table{border-collapse:collapse; width:100%}
     th,td{padding:10px 12px; text-align:left}
     th{font-weight:600; color:var(--muted); border-bottom:1px solid var(--border); background:linear-gradient(to bottom, color-mix(in hsl, var(--panel) 92%, transparent), var(--panel)); position:sticky; top:66px; z-index:10}
     tr:nth-child(even) td{background:var(--zebra)}
     tbody tr:hover td{background:color-mix(in hsl, var(--zebra) 70%, var(--panel))}
+
     .badge{display:inline-block; padding:2px 8px; border-radius:999px; background:var(--badge-bg); color:var(--badge-text); border:1px solid var(--border); font-size:12px}
-    .link a{color:var(--accent); text-decoration:none} .link a:hover{text-decoration:underline}
+
+    .link a{color:var(--accent); text-decoration:none}
+    .link a:hover{text-decoration:underline}
+
     .side{display:flex; gap:12px; flex-wrap:wrap; align-items:center}
-    .switch{display:inline-flex; align-items:center; gap:8px} .switch input{accent-color:var(--accent)}
-    body.stage .pill{padding:12px 16px} body.stage h1{font-size:20px}
+    .switch{display:inline-flex; align-items:center; gap:8px}
+    .switch input{accent-color:var(--accent)}
+
+    /* 本番モード（でか文字・見やすさ重視） */
+    body.stage .pill{padding:12px 16px}
+    body.stage h1{font-size:20px}
     body.stage th, body.stage td{padding:14px 14px; font-size:18px}
     body.stage .btn, body.stage .chip{padding:10px 14px; font-size:16px}
     body.stage .header .inner{gap:12px}
-    .recent{display:flex; flex-wrap:wrap; gap:8px} .recent .rbtn{border:1px solid var(--border); background:var(--panel); color:var(--text); padding:6px 10px; border-radius:999px; cursor:pointer}
-    .quick-links{display:inline-flex; gap:.25rem; margin-left:.5rem; flex-wrap:wrap}
-    .quick-links a{font-size:12px; padding:2px 6px; border:1px solid var(--border); border-radius:6px; text-decoration:none; color:var(--text); background:var(--panel)}
+
+    .recent{display:flex; flex-wrap:wrap; gap:8px}
+    .recent .rbtn{border:1px solid var(--border); background:var(--panel); color:var(--text); padding:6px 10px; border-radius:999px; cursor:pointer}
+
+    .quick-links { display:inline-flex; gap:.25rem; margin-left:.5rem; flex-wrap:wrap; }
+    .quick-links a {
+      font-size:12px; padding:2px 6px; border:1px solid var(--border); border-radius:6px; text-decoration:none; color:var(--text); background:var(--panel);
+    }
+
     @media (max-width:640px){ th{top:108px} }
   </style>
 </head>
@@ -83,7 +104,7 @@
 
     <p style="color:var(--muted); font-size:13px; margin:12px 2px">
       ※ CSVヘッダ例：<code>状態,曲名,アーティスト,ジャンル,備考,リンク先,コードURL</code>（順不同OK）  
-      ※ オリジナル曲は「備考」に <code>オリジナル</code> を含めると検索ボタンを出さず、<code>コードURL</code>があれば「自分のコード」ボタンを表示。  
+      ※ オリジナル曲は「備考」に <code>オリジナル</code> を含めると検索ボタンを出さず、<code>コードURL</code>があれば「自分のコード</code>ボタンを表示。  
       ※ 表では <code>リンク先</code> / <code>コードURL</code> 列は非表示にしています。
     </p>
   </div>
@@ -93,7 +114,7 @@
     function norm(s){
       return (s ?? '').toString().normalize('NFKC').replace(/\s+/g,' ').trim();
     }
-    // ひらがな→カタカナ（さらに表記ゆれを吸収）
+    // ひらがな→カタカナ（さらに表記ゆれ吸収）
     function toKana(s){
       return (s||'').replace(/[\u3041-\u3096]/g, ch => String.fromCharCode(ch.charCodeAt(0)+0x60));
     }
@@ -119,10 +140,13 @@
     let titleCol=-1, noteCol=-1, stateCol=-1, artistCol=-1, linkCol=-1, codeCol=-1;
 
     // ---- Helpers ----
-    function escapeHTML(s){ return (s??'').replace(/[&<>\"']/g, m=>({"&":"&amp;","<":"&lt;",";">":"&gt;","\"":"&quot;","'":"&#39;"}[m])); }
+    function escapeHTML(s){
+      return (s??'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    }
     function sanitizeURL(u){ try{ const url=new URL((u||'').trim()); if(url.protocol==='http:'||url.protocol==='https:') return url.href; }catch{} return ''; }
     function enc(s){ return encodeURIComponent(norm(s)); }
 
+    // オリジナル判定（備考に“オリジナル” or アーティストが“しおやん”）
     function isOriginal(row){
       const artist = (artistCol>=0 ? toKana(norm(row[artistCol])) : '');
       const note   = (noteCol>=0 ? toKana(norm(row[noteCol]))   : '');
@@ -211,11 +235,13 @@
 
     // ---- Search / Sort / Filters ----
     function applySearch(allRows, keyword){
-      const k = norm(keyword);
+      const k = toKana(norm(keyword)); // 入力もかな正規化
       if(!k) return allRows;
       const kws = k.toLowerCase().split(/[\s\u3000]+/).filter(Boolean);
       return allRows.filter((r,i)=>
-        i===0 || kws.every(kw => r.some(c => norm(c).toLowerCase().includes(kw)))
+        i===0 || kws.every(kw =>
+          r.some(c => toKana(norm(c)).toLowerCase().includes(kw)) // セル側もかな正規化
+        )
       );
     }
     function sortByTitle(allRows){
