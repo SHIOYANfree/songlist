@@ -44,15 +44,6 @@
     .link a:hover{text-decoration:underline}
 
     .side{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
-    .switch{display:inline-flex; align-items:center; gap:8px}
-    .switch input{accent-color:var(--accent)}
-
-    /* 本番モード（大きめUI） */
-    body.stage .pill{padding:12px 16px}
-    body.stage h1{font-size:20px}
-    body.stage th, body.stage td{padding:14px 14px; font-size:18px}
-    body.stage .btn, body.stage .chip{padding:10px 14px; font-size:16px}
-    body.stage .header .inner{gap:12px}
 
     .recent{display:flex; flex-wrap:wrap; gap:8px}
     .recent .rbtn{border:1px solid var(--border); background:var(--panel); color:var(--text); padding:6px 10px; border-radius:999px; cursor:pointer}
@@ -72,8 +63,7 @@
         <input id="searchBox" placeholder="検索（スペース区切りでAND）"/>
       </div>
       <div class="side">
-        <span class="switch"><input type="checkbox" id="stageToggle"> 本番モード</span>
-        <!-- ★ ソート2種 -->
+        <!-- ソート2種 -->
         <button id="sortTitleBtn" class="btn">曲名A→Z</button>
         <button id="sortArtistBtn" class="btn">アーティストA→Z</button>
         <label class="chip"><input id="darkToggle" type="checkbox"/> ダーク</label>
@@ -83,11 +73,10 @@
 
   <div class="wrap">
     <div class="filters">
-      <!-- “含めるカテゴリ” 方式 -->
+      <!-- 状態で“含める”方式：3つだけ -->
       <span class="chip"><input type="checkbox" id="fPractice"> 練習中</span>
       <span class="chip"><input type="checkbox" id="fOk"> 対応可</span>
       <span class="chip"><input type="checkbox" id="fEns"> 伴奏のみ</span>
-      <span class="chip"><input type="checkbox" id="fOriginal"> オリジナル</span>
       <span class="chip" id="countChip">全件数: <b id="countAll">0</b> / 表示: <b id="countShown">0</b></span>
     </div>
 
@@ -106,7 +95,7 @@
 
     <p style="color:var(--muted); font-size:13px; margin:12px 2px">
       ※ CSVヘッダ例：<code>状態,曲名,アーティスト,ジャンル,備考,リンク先,コードURL</code>（順不同OK）  
-      ※ オリジナル曲は「備考」に <code>オリジナル</code> を含めると検索ボタンを出さず、<code>コードURL</code>があれば「自分のコード</code>ボタンを表示。  
+      ※ オリジナル曲は備考に <code>オリジナル</code> と入れておけば、検索でヒットします。  
       ※ 表では <code>リンク先</code> / <code>コードURL</code> 列は非表示にしています。
     </p>
   </div>
@@ -158,7 +147,7 @@
     function sanitizeURL(u){ try{ const url=new URL((u||'').trim()); if(url.protocol==='http:'||url.protocol==='https:') return url.href; }catch{} return ''; }
     function enc(s){ return encodeURIComponent(norm(s)); }
 
-    // オリジナル判定（正規化後に判定）
+    // オリジナル判定（備考に“オリジナル”含む or アーティストが“しおやん”）
     function isOriginal(row){
       const artist = (artistCol>=0 ? toKana(norm(row[artistCol])) : '');
       const note   = (noteCol>=0 ? toKana(norm(row[noteCol]))   : '');
@@ -253,13 +242,12 @@
       );
     }
 
-    // 並べ替え（曲名 / アーティスト）
     function sortRows(allRows){
       const header = allRows[0];
       const data = allRows.slice(1);
       const idx = (sortKey === 'artist' && artistCol >= 0) ? artistCol : titleCol;
       const asc = (sortKey === 'artist') ? sortAscArtist : sortAscTitle;
-      if (idx < 0) return allRows; // 列が不明ならソートしない
+      if (idx < 0) return allRows;
 
       const sorted = data.sort((a,b)=>{
         const A = norm(a[idx]||'').toLowerCase();
@@ -270,23 +258,19 @@
       return [header].concat(sorted);
     }
 
-    // 含めるカテゴリ（チェックされたものの和集合）
-    function applyCategoryFilter(allRows){
+    // 状態フィルタ（3つの和集合）
+    function applyStateFilter(allRows){
       const selPractice = document.getElementById('fPractice').checked;
       const selOk       = document.getElementById('fOk').checked;
       const selEns      = document.getElementById('fEns').checked;
-      const selOrig     = document.getElementById('fOriginal').checked;
 
-      if(!selPractice && !selOk && !selEns && !selOrig) return [allRows[0]];
+      if(!selPractice && !selOk && !selEns) return [allRows[0]];
 
       return [allRows[0]].concat(allRows.slice(1).filter(r=>{
         const st = (stateCol>=0 ? norm(r[stateCol]) : '');
-        const matchState =
-          (selPractice && st==='練習中') ||
-          (selOk       && st==='対応可') ||
-          (selEns      && st==='伴奏のみ');
-        const matchOrig = selOrig && isOriginal(r);
-        return matchState || matchOrig;
+        return (selPractice && st==='練習中') ||
+               (selOk       && st==='対応可') ||
+               (selEns      && st==='伴奏のみ');
       }));
     }
 
@@ -304,14 +288,13 @@
       btnTitle.textContent  = `曲名${sortAscTitle?'A→Z':'Z→A'}`;
       btnArtist.textContent = `アーティスト${sortAscArtist?'A→Z':'Z→A'}`;
 
-      // アーティスト列がない場合は無効化
       btnArtist.disabled = (artistCol < 0);
       btnArtist.title = (artistCol < 0) ? 'CSVにアーティスト列が無いので使用できません' : 'アーティスト名で並べ替え';
     }
 
     function rerender(){
       const afterSearch  = applySearch(rows, document.getElementById('searchBox').value);
-      const afterFilter  = applyCategoryFilter(afterSearch);
+      const afterFilter  = applyStateFilter(afterSearch);
       const afterSort    = sortRows(afterFilter);
 
       // 表示列（リンク先/コードURLを隠す）＋保険
@@ -330,8 +313,6 @@
     const fPractice     = document.getElementById('fPractice');
     const fOk           = document.getElementById('fOk');
     const fEns          = document.getElementById('fEns');
-    const fOriginal     = document.getElementById('fOriginal');
-    const stageToggle   = document.getElementById('stageToggle');
     const sortTitleBtn  = document.getElementById('sortTitleBtn');
     const sortArtistBtn = document.getElementById('sortArtistBtn');
 
@@ -340,25 +321,15 @@
     fPractice.addEventListener('change', rerender);
     fOk.addEventListener('change', rerender);
     fEns.addEventListener('change', rerender);
-    fOriginal.addEventListener('change', rerender);
 
     sortTitleBtn.addEventListener('click', ()=>{
-      if (sortKey === 'title') sortAscTitle = !sortAscTitle; // 連打で昇降反転
+      if (sortKey === 'title') sortAscTitle = !sortAscTitle;
       sortKey = 'title';
       rerender();
     });
     sortArtistBtn.addEventListener('click', ()=>{
       if (sortKey === 'artist') sortAscArtist = !sortAscArtist;
       sortKey = 'artist';
-      rerender();
-    });
-
-    stageToggle.addEventListener('change', ()=>{
-      document.body.classList.toggle('stage', stageToggle.checked);
-      if(stageToggle.checked){
-        // 起動既定：本番は「対応可」だけON（好みに応じて変更可）
-        fPractice.checked=false; fOk.checked=true; fEns.checked=false; fOriginal.checked=false;
-      }
       rerender();
     });
 
@@ -383,12 +354,10 @@
           else if (header.length > 1) titleCol = 0;
         }
 
-        // 初期：本番モードON
-        const STAGE_DEFAULT=true;
-        if(STAGE_DEFAULT){
-          stageToggle.checked=true; document.body.classList.add('stage');
-          fPractice.checked=false; fOk.checked=true; fEns.checked=false; fOriginal.checked=false;
-        }
+        // ★ 初期状態：3つすべてチェックON
+        fPractice.checked = true;
+        fOk.checked       = true;
+        fEns.checked      = true;
 
         rerender();
       }).catch(err=>{
@@ -399,4 +368,6 @@
   </script>
 </body>
 </html>
+
+
 
