@@ -34,16 +34,14 @@
     .card{background:var(--panel); border:1px solid var(--border); border-radius:16px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,.25)}
     table{border-collapse:collapse; width:100%}
     th,td{padding:10px 12px; text-align:left}
-
-    /* ←← ここ修正：ヘッダーを完全不透明にして透け防止 */
+    /* ヘッダーは完全不透明（透け防止） */
     th{
       font-weight:600; color:var(--muted);
       border-bottom:1px solid var(--border);
-      background:var(--panel);               /* 不透明 */
-      position:sticky; top:66px; z-index:10; /* テーブル見出しを上固定 */
+      background:var(--panel);
+      position:sticky; top:66px; z-index:10;
       box-shadow:0 1px 0 color-mix(in hsl, var(--border) 60%, transparent) inset;
     }
-
     tr:nth-child(even) td{background:var(--zebra)}
     tbody tr:hover td{background:color-mix(in hsl, var(--zebra) 70%, var(--panel))}
 
@@ -71,7 +69,6 @@
         <input id="searchBox" placeholder="検索（スペース区切りでAND）"/>
       </div>
       <div class="side">
-        <!-- 並べ替え2種 -->
         <button id="sortTitleBtn" class="btn">曲名A→Z</button>
         <button id="sortArtistBtn" class="btn">アーティストA→Z</button>
         <label class="chip"><input id="darkToggle" type="checkbox"/> ダーク</label>
@@ -103,7 +100,7 @@
 
     <p style="color:var(--muted); font-size:13px; margin:12px 2px">
       ※ CSVヘッダ例：<code>状態,曲名,アーティスト,ジャンル,備考,リンク先,コードURL</code>（順不同OK）  
-      ※ オリジナル曲は備考に <code>オリジナル</code> と入れておけば、検索でヒットします。  
+      ※ オリジナル曲は備考に <code>オリジナル</code> と入れておけば検索でヒットします。  
       ※ 表では <code>リンク先</code> / <code>コードURL</code> 列は非表示にしています。
     </p>
   </div>
@@ -143,7 +140,7 @@
     let rows=[];
     let titleCol=-1, noteCol=-1, stateCol=-1, artistCol=-1, linkCol=-1, codeCol=-1;
 
-    // ソート状態
+    // 並べ替え
     let sortKey = 'title';          // 'title' | 'artist'
     let sortAscTitle = true;
     let sortAscArtist = true;
@@ -152,13 +149,11 @@
     function escapeHTML(s){ return (s??'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
     function sanitizeURL(u){ try{ const url=new URL((u||'').trim()); if(url.protocol==='http:'||url.protocol==='https:') return url.href; }catch{} return ''; }
     function enc(s){ return encodeURIComponent(norm(s)); }
-
     function isOriginal(row){
       const artist = (artistCol>=0 ? toKana(norm(row[artistCol])) : '');
       const note   = (noteCol>=0 ? toKana(norm(row[noteCol]))   : '');
       return note.includes('オリジナル') || /しおやん|shioyan/i.test(artist);
     }
-
     function buildQuickLinks(title, artist){
       const t=norm(title); if(!t) return '';
       const q = enc(`${t} ${artist||''}`);
@@ -198,7 +193,6 @@
       const tbody=document.getElementById('tbody');
       if(!data || data.length<=1){ tbody.innerHTML=`<tr><td colspan="99" style="color:#9aa3b2">データがありません。</td></tr>`; setCounts(0); return; }
 
-      // 曲名空行の安全フィルタ（titleCol 不明時は素通し）
       const rowsOnlyWithTitle = (titleCol >= 0)
         ? data.slice(1).filter(r => norm(r[titleCol]) !== '')
         : data.slice(1);
@@ -236,13 +230,15 @@
     }
 
     /* ---------- Search / Sort / Filters ---------- */
+    // ★検索は「曲名＋アーティスト＋備考」に限定してAND
     function applySearch(allRows, keyword){
       const k = toKana(norm(keyword));
       if(!k) return allRows;
       const kws = k.toLowerCase().split(/[\s\u3000]+/).filter(Boolean);
+      const targets = [titleCol, artistCol, noteCol].filter(i => i >= 0);
       return allRows.filter((r,i)=>
         i===0 || kws.every(kw =>
-          r.some(c => toKana(norm(c)).toLowerCase().includes(kw))
+          targets.some(ix => toKana(norm(r[ix] || '')).toLowerCase().includes(kw))
         )
       );
     }
@@ -263,7 +259,6 @@
       return [header].concat(sorted);
     }
 
-    // 状態フィルタ（3つの和集合）
     function applyStateFilter(allRows){
       const selPractice = document.getElementById('fPractice').checked;
       const selOk       = document.getElementById('fOk').checked;
