@@ -9,7 +9,6 @@
     --bg:#0b0c0f; --panel:#12141a; --text:#e7e9ee; --muted:#9aa3b2;
     --accent:#5ac8fa; --border:#242833; --zebra:#0f1117;
     --badge-bg:#1e2633; --badge-text:#c8d1e6;
-    --stickTop: 66px; /* JSで動的に上書き */
   }
   @media (prefers-color-scheme: light){
     :root{ --bg:#f7f8fb; --panel:#ffffff; --text:#0b0c0f; --muted:#5b6472; --accent:#007aff; --border:#e6e8ee; --zebra:#f3f5f9; --badge-bg:#eef2f7; --badge-text:#334155; }
@@ -41,18 +40,8 @@
   th,td{padding:10px 12px; text-align:left}
   td{vertical-align:middle}
 
-  /* thead 全体を sticky（th は通常セル） */
-  thead{
-    position:sticky; top:var(--stickTop); z-index:10;
-    background:var(--panel);
-  }
-  thead th{
-    font-weight:600; color:var(--muted);
-    border-bottom:1px solid var(--border);
-    white-space:nowrap;
-    background:var(--panel);
-    box-shadow:0 1px 0 color-mix(in hsl, var(--border) 60%, transparent) inset;
-  }
+  /* ヘッダー（列名）は出さない */
+  thead{display:none}
 
   tr:nth-child(even) td{background:var(--zebra)}
   tbody tr:hover td{background:color-mix(in hsl, var(--zebra) 70%, var(--panel))}
@@ -62,9 +51,6 @@
   .link a:hover{text-decoration:underline}
 
   .side{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
-
-  .recent{display:flex; flex-wrap:wrap; gap:8px}
-  .recent .rbtn{border:1px solid var(--border); background:var(--panel); color:var(--text); padding:6px 10px; border-radius:999px; cursor:pointer}
 
   .quick-links { display:inline-flex; gap:.25rem; margin-left:.5rem; flex-wrap:wrap; }
   .quick-links a { font-size:12px; padding:2px 6px; border:1px solid var(--border); border-radius:6px; text-decoration:none; color:var(--text); background:var(--panel); }
@@ -88,6 +74,7 @@
 
   <div class="wrap">
     <div class="filters" id="filters">
+      <!-- 表示の絞り込みは“含める”方式（初期すべてON） -->
       <span class="chip"><input type="checkbox" id="fPractice"> 練習中</span>
       <span class="chip"><input type="checkbox" id="fOk"> 対応可</span>
       <span class="chip"><input type="checkbox" id="fEns"> 伴奏のみ</span>
@@ -101,16 +88,10 @@
       </table>
     </div>
 
-    <div style="margin-top:10px">
-      <div class="chip" style="gap:8px; align-items:center">最近ひいた：
-        <span id="recent" class="recent"></span>
-      </div>
-    </div>
-
     <p style="color:var(--muted); font-size:13px; margin:12px 2px">
       ※ CSVヘッダ例：<code>状態,曲名,アーティスト,ジャンル,備考,リンク先,コードURL</code>（順不同OK）  
       ※ オリジナル曲は備考に <code>オリジナル</code> と入れておけば検索でヒットします。  
-      ※ 表では <code>リンク先</code> / <code>コードURL</code> 列は非表示にしています。
+      ※ 表では <code>状態</code> / <code>リンク先</code> / <code>コードURL</code> 列は非表示にしています。
     </p>
   </div>
 
@@ -170,24 +151,11 @@
     </span>`;
   }
 
-  /* 最近ひいた */
-  const RECENT_KEY='songlist_recent_v1';
-  function pushRecent(title,url){ try{
-    const list=JSON.parse(localStorage.getItem(RECENT_KEY)||'[]');
-    const item={t:title,u:url,ts:Date.now()};
-    const filtered=list.filter(x=>x.t!==title); filtered.unshift(item);
-    localStorage.setItem(RECENT_KEY, JSON.stringify(filtered.slice(0,8)));
-    renderRecent();
-  }catch{} }
-  function renderRecent(){ try{
-    const box=document.getElementById('recent');
-    const list=JSON.parse(localStorage.getItem(RECENT_KEY)||'[]');
-    box.innerHTML=list.map(x=>`<button class="rbtn" onclick="openSong('${escapeHTML(x.t)}','${escapeHTML(x.u||'')}')">${escapeHTML(x.t)}</button>`).join('');
-  }catch{} }
-  function openSong(title,url){ if(url){ window.open(url,'_blank','noopener'); pushRecent(title,url); } }
+  function openSong(title,url){ if(url){ window.open(url,'_blank','noopener'); } }
 
   /* ===== Rendering ===== */
   function renderHeader(headers, showIdx){
+    // ヘッダーは非表示（thead{display:none}）だが一応生成しておく
     const h = showIdx.map(i => headers[i]);
     document.getElementById('thead').innerHTML = h.map(x=>`<th>${escapeHTML(x)}</th>`).join('');
   }
@@ -227,12 +195,10 @@
 
     tbody.innerHTML = body;
     setCounts(rowsOnlyWithTitle.length);
-
-    queueMicrotask(updateStickyTop); // 表示更新のあとに再計算
   }
 
   /* ===== Search / Sort / Filters ===== */
-  // 検索は「曲名＋アーティスト＋備考」に限定してAND
+  // 検索は「曲名＋アーティスト＋備考」のAND
   function applySearch(allRows, keyword){
     const k = toKana(norm(keyword));
     if(!k) return allRows;
@@ -293,36 +259,15 @@
     const afterSearch  = applySearch(rows, document.getElementById('searchBox').value);
     const afterFilter  = applyStateFilter(afterSearch);
     const afterSort    = sortRows(afterFilter);
+
     const header = rows[0];
-    let showIdx = header.map((_,i)=>i).filter(i => i!==linkCol && i!==codeCol);
+    // 状態 / リンク先 / コードURL 列は表示しない
+    let showIdx = header.map((_,i)=>i).filter(i => i!==stateCol && i!==linkCol && i!==codeCol);
     if (showIdx.length === 0) showIdx = header.map((_,i)=>i);
+
     renderHeader(header, showIdx);
     renderBody(afterSort, showIdx);
     updateSortButtons();
-  }
-
-  /* ===== Sticky Top（重なり防止：thead） ===== */
-  // ←ここが今回の“根本対応版”
-  function updateStickyTop(){
-    try{
-      const header  = document.querySelector('.header');   // 上のタイトル/検索バー（sticky）
-      const filters = document.getElementById('filters');  // チェックボックス行（非sticky）
-
-      // 1) ヘッダーの高さは必ず確保
-      let top = (header?.offsetHeight || 0);
-
-      // 2) 画面上で実際に“見えている”フィルタの高さぶんだけ加算
-      if (filters) {
-        const r = filters.getBoundingClientRect();
-        const visible = Math.max(0, Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0));
-        top += Math.min(visible, r.height);
-      }
-
-      // 3) 微小余白（重なり防止）
-      top += 6;
-
-      document.documentElement.style.setProperty('--stickTop', top + 'px');
-    }catch(e){}
   }
 
   /* ===== Events ===== */
@@ -334,22 +279,20 @@
   const sortTitleBtn  = document.getElementById('sortTitleBtn');
   const sortArtistBtn = document.getElementById('sortArtistBtn');
 
-  searchBox.addEventListener('input', ()=>{ rerender(); updateStickyTop(); });
-  darkToggle.addEventListener('change', ()=>{ document.documentElement.style.colorScheme=darkToggle.checked?'dark':'light'; updateStickyTop(); });
-  fPractice.addEventListener('change', ()=>{ rerender(); updateStickyTop(); });
-  fOk.addEventListener('change', ()=>{ rerender(); updateStickyTop(); });
-  fEns.addEventListener('change', ()=>{ rerender(); updateStickyTop(); });
+  searchBox.addEventListener('input', rerender);
+  darkToggle.addEventListener('change', ()=>{ document.documentElement.style.colorScheme=darkToggle.checked?'dark':'light'; });
+  fPractice.addEventListener('change', rerender);
+  fOk.addEventListener('change', rerender);
+  fEns.addEventListener('change', rerender);
 
   sortTitleBtn.addEventListener('click', ()=>{
     if (sortKey === 'title') sortAscTitle = !sortAscTitle;
-    sortKey = 'title'; rerender(); updateStickyTop();
+    sortKey = 'title'; rerender();
   });
   sortArtistBtn.addEventListener('click', ()=>{
     if (sortKey === 'artist') sortAscArtist = !sortAscArtist;
-    sortKey = 'artist'; rerender(); updateStickyTop();
+    sortKey = 'artist'; rerender();
   });
-
-  window.addEventListener('resize', updateStickyTop);
 
   /* ===== Load CSV ===== */
   (function load(){
@@ -373,7 +316,6 @@
       fPractice.checked = true; fOk.checked = true; fEns.checked = true;
 
       rerender();
-      updateStickyTop(); // 初回計算
     }).catch(err=>{
       console.error(err);
       document.getElementById('tbody').innerHTML='<tr><td colspan="99" style="color:#9aa3b2">CSV読み込みに失敗しました。ヘッダ名とファイル名をご確認ください。</td></tr>';
@@ -382,3 +324,4 @@
 </script>
 </body>
 </html>
+
