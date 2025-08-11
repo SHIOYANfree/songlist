@@ -5,7 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>しおやんの弾き語りリスト</title>
   <style>
-    :root{ --bg:#0b0c0f; --panel:#12141a; --text:#e7e9ee; --muted:#9aa3b2; --accent:#5ac8fa; --border:#242833; --zebra:#0f1117; --badge-bg:#1e2633; --badge-text:#c8d1e6; }
+    :root{
+      --bg:#0b0c0f; --panel:#12141a; --text:#e7e9ee; --muted:#9aa3b2;
+      --accent:#5ac8fa; --border:#242833; --zebra:#0f1117;
+      --badge-bg:#1e2633; --badge-text:#c8d1e6;
+      /* テーブル見出しの固定位置（JSで動的に上書き） */
+      --stickTop: 66px;
+    }
     @media (prefers-color-scheme: light){
       :root{ --bg:#f7f8fb; --panel:#ffffff; --text:#0b0c0f; --muted:#5b6472; --accent:#007aff; --border:#e6e8ee; --zebra:#f3f5f9; --badge-bg:#eef2f7; --badge-text:#334155; }
     }
@@ -34,14 +40,16 @@
     .card{background:var(--panel); border:1px solid var(--border); border-radius:16px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,.25)}
     table{border-collapse:collapse; width:100%}
     th,td{padding:10px 12px; text-align:left}
-    /* ヘッダーは完全不透明（透け防止） */
+
+    /* ヘッダーは完全不透明＋上バーと絶対に重ならないように動的 top を使用 */
     th{
       font-weight:600; color:var(--muted);
       border-bottom:1px solid var(--border);
       background:var(--panel);
-      position:sticky; top:66px; z-index:10;
+      position:sticky; top:var(--stickTop); z-index:10;
       box-shadow:0 1px 0 color-mix(in hsl, var(--border) 60%, transparent) inset;
     }
+
     tr:nth-child(even) td{background:var(--zebra)}
     tbody tr:hover td{background:color-mix(in hsl, var(--zebra) 70%, var(--panel))}
 
@@ -57,7 +65,7 @@
     .quick-links { display:inline-flex; gap:.25rem; margin-left:.5rem; flex-wrap:wrap; }
     .quick-links a { font-size:12px; padding:2px 6px; border:1px solid var(--border); border-radius:6px; text-decoration:none; color:var(--text); background:var(--panel); }
 
-    @media (max-width:640px){ th{top:108px} }
+    @media (max-width:640px){ /* 上バーが高くなるので JS 側で --stickTop を再計算します */ }
   </style>
 </head>
 <body>
@@ -77,8 +85,8 @@
   </div>
 
   <div class="wrap">
-    <div class="filters">
-      <!-- 状態で“含める”方式：3つだけ -->
+    <div class="filters" id="filters">
+      <!-- 状態で“含める”方式：3つだけ（初期すべてONはJSで設定） -->
       <span class="chip"><input type="checkbox" id="fPractice"> 練習中</span>
       <span class="chip"><input type="checkbox" id="fOk"> 対応可</span>
       <span class="chip"><input type="checkbox" id="fEns"> 伴奏のみ</span>
@@ -227,10 +235,13 @@
 
       tbody.innerHTML = body;
       setCounts(rowsOnlyWithTitle.length);
+
+      // 表示を更新したタイミングで sticky top を再計算（行の高さでフィルタ段が折り返す可能性があるため）
+      queueMicrotask(updateStickyTop);
     }
 
     /* ---------- Search / Sort / Filters ---------- */
-    // ★検索は「曲名＋アーティスト＋備考」に限定してAND
+    // 検索は「曲名＋アーティスト＋備考」に限定してAND
     function applySearch(allRows, keyword){
       const k = toKana(norm(keyword));
       if(!k) return allRows;
@@ -306,6 +317,16 @@
       updateSortButtons();
     }
 
+    /* ---------- Sticky Top（重なり防止） ---------- */
+    function updateStickyTop(){
+      try{
+        const header = document.querySelector('.header');
+        const filters = document.getElementById('filters');
+        const top = (header?.offsetHeight || 0) + (filters?.offsetHeight || 0) + 8; // 余白8px
+        document.documentElement.style.setProperty('--stickTop', top + 'px');
+      }catch(e){}
+    }
+
     /* ---------- Events ---------- */
     const searchBox     = document.getElementById('searchBox');
     const darkToggle    = document.getElementById('darkToggle');
@@ -315,22 +336,24 @@
     const sortTitleBtn  = document.getElementById('sortTitleBtn');
     const sortArtistBtn = document.getElementById('sortArtistBtn');
 
-    searchBox.addEventListener('input', rerender);
-    darkToggle.addEventListener('change', ()=>{ document.documentElement.style.colorScheme=darkToggle.checked?'dark':'light'; rerender(); });
-    fPractice.addEventListener('change', rerender);
-    fOk.addEventListener('change', rerender);
-    fEns.addEventListener('change', rerender);
+    searchBox.addEventListener('input', ()=>{ rerender(); updateStickyTop(); });
+    darkToggle.addEventListener('change', ()=>{ document.documentElement.style.colorScheme=darkToggle.checked?'dark':'light'; updateStickyTop(); });
+    fPractice.addEventListener('change', ()=>{ rerender(); updateStickyTop(); });
+    fOk.addEventListener('change', ()=>{ rerender(); updateStickyTop(); });
+    fEns.addEventListener('change', ()=>{ rerender(); updateStickyTop(); });
 
     sortTitleBtn.addEventListener('click', ()=>{
       if (sortKey === 'title') sortAscTitle = !sortAscTitle;
       sortKey = 'title';
-      rerender();
+      rerender(); updateStickyTop();
     });
     sortArtistBtn.addEventListener('click', ()=>{
       if (sortKey === 'artist') sortAscArtist = !sortAscArtist;
       sortKey = 'artist';
-      rerender();
+      rerender(); updateStickyTop();
     });
+
+    window.addEventListener('resize', ()=>{ updateStickyTop(); });
 
     /* ---------- Load CSV ---------- */
     (function load(){
@@ -354,11 +377,12 @@
         }
 
         // 初期：3チェックすべてON
-        document.getElementById('fPractice').checked = true;
-        document.getElementById('fOk').checked       = true;
-        document.getElementById('fEns').checked      = true;
+        fPractice.checked = true;
+        fOk.checked       = true;
+        fEns.checked      = true;
 
         rerender();
+        updateStickyTop(); // 初回計算
       }).catch(err=>{
         console.error(err);
         document.getElementById('tbody').innerHTML='<tr><td colspan="99" style="color:#9aa3b2">CSV読み込みに失敗しました。ヘッダ名とファイル名をご確認ください。</td></tr>';
@@ -367,3 +391,4 @@
   </script>
 </body>
 </html>
+
