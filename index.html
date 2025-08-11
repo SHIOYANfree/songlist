@@ -34,12 +34,20 @@
     .card{background:var(--panel); border:1px solid var(--border); border-radius:16px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,.25)}
     table{border-collapse:collapse; width:100%}
     th,td{padding:10px 12px; text-align:left}
-    th{font-weight:600; color:var(--muted); border-bottom:1px solid var(--border); background:linear-gradient(to bottom, color-mix(in hsl, var(--panel) 92%, transparent), var(--panel)); position:sticky; top:66px; z-index:10}
+
+    /* ←← ここ修正：ヘッダーを完全不透明にして透け防止 */
+    th{
+      font-weight:600; color:var(--muted);
+      border-bottom:1px solid var(--border);
+      background:var(--panel);               /* 不透明 */
+      position:sticky; top:66px; z-index:10; /* テーブル見出しを上固定 */
+      box-shadow:0 1px 0 color-mix(in hsl, var(--border) 60%, transparent) inset;
+    }
+
     tr:nth-child(even) td{background:var(--zebra)}
     tbody tr:hover td{background:color-mix(in hsl, var(--zebra) 70%, var(--panel))}
 
     .badge{display:inline-block; padding:2px 8px; border-radius:999px; background:var(--badge-bg); color:var(--badge-text); border:1px solid var(--border); font-size:12px}
-
     .link a{color:var(--accent); text-decoration:none}
     .link a:hover{text-decoration:underline}
 
@@ -63,7 +71,7 @@
         <input id="searchBox" placeholder="検索（スペース区切りでAND）"/>
       </div>
       <div class="side">
-        <!-- ソート2種 -->
+        <!-- 並べ替え2種 -->
         <button id="sortTitleBtn" class="btn">曲名A→Z</button>
         <button id="sortArtistBtn" class="btn">アーティストA→Z</button>
         <label class="chip"><input id="darkToggle" type="checkbox"/> ダーク</label>
@@ -133,8 +141,6 @@
 
     /* ---------- State ---------- */
     let rows=[];
-
-    // 列インデックス
     let titleCol=-1, noteCol=-1, stateCol=-1, artistCol=-1, linkCol=-1, codeCol=-1;
 
     // ソート状態
@@ -147,7 +153,6 @@
     function sanitizeURL(u){ try{ const url=new URL((u||'').trim()); if(url.protocol==='http:'||url.protocol==='https:') return url.href; }catch{} return ''; }
     function enc(s){ return encodeURIComponent(norm(s)); }
 
-    // オリジナル判定（備考に“オリジナル”含む or アーティストが“しおやん”）
     function isOriginal(row){
       const artist = (artistCol>=0 ? toKana(norm(row[artistCol])) : '');
       const note   = (noteCol>=0 ? toKana(norm(row[noteCol]))   : '');
@@ -297,7 +302,6 @@
       const afterFilter  = applyStateFilter(afterSearch);
       const afterSort    = sortRows(afterFilter);
 
-      // 表示列（リンク先/コードURLを隠す）＋保険
       const header = rows[0];
       let showIdx = header.map((_,i)=>i).filter(i => i!==linkCol && i!==codeCol);
       if (showIdx.length === 0) showIdx = header.map((_,i)=>i);
@@ -354,10 +358,10 @@
           else if (header.length > 1) titleCol = 0;
         }
 
-        // ★ 初期状態：3つすべてチェックON
-        fPractice.checked = true;
-        fOk.checked       = true;
-        fEns.checked      = true;
+        // 初期：3チェックすべてON
+        document.getElementById('fPractice').checked = true;
+        document.getElementById('fOk').checked       = true;
+        document.getElementById('fEns').checked      = true;
 
         rerender();
       }).catch(err=>{
@@ -368,6 +372,3 @@
   </script>
 </body>
 </html>
-
-
-
