@@ -25,7 +25,7 @@
   .pill input{all:unset; width:100%; color:var(--text)}
   .pill input::placeholder{color:var(--muted)}
 
-  .btn{appearance:none; border:1px solid var(--border); background:var(--panel); color:var(--text); padding:8px 12px; border-radius:12px; cursor:pointer}
+  .btn{appearance:none; border:1px solid var(--border); background:var(--panel); color:var(--text); padding:8px 12px; border-radius:12px; cursor:pointer; text-decoration:none; display:inline-block}
   .btn:hover{border-color:var(--accent)}
   .btn.active{ border-color:var(--accent); box-shadow:0 0 0 2px color-mix(in hsl, var(--accent) 30%, transparent) inset; }
 
@@ -54,6 +54,12 @@
 
   .quick-links { display:inline-flex; gap:.25rem; margin-left:.5rem; flex-wrap:wrap; }
   .quick-links a { font-size:12px; padding:2px 6px; border:1px solid var(--border); border-radius:6px; text-decoration:none; color:var(--text); background:var(--panel); }
+
+  footer{max-width:1100px; margin:16px auto; padding:12px 16px; color:#9aa3b2; font-size:12px}
+  footer .links{display:flex; gap:8px; flex-wrap:wrap; margin-top:6px}
+/* ── SNSアイコンボタン用（小さくて押しやすい） ── */
+.iconbtn{display:inline-flex; align-items:center; gap:6px; line-height:1}
+.iconbtn svg{width:16px; height:16px; display:block}
 </style>
 </head>
 <body>
@@ -64,17 +70,43 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M21 21L16.65 16.65M19 11C19 15.4183 15.4183 19 11 19C6.58172 19 3 15.4183 3 11C3 6.58172 6 3 11 3C15.4183 3 19 6.58 19 11Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <input id="searchBox" placeholder="検索（スペース区切りでAND）"/>
       </div>
-      <div class="side">
-        <button id="sortTitleBtn" class="btn">曲名A→Z</button>
-        <button id="sortArtistBtn" class="btn">アーティストA→Z</button>
-        <label class="chip"><input id="darkToggle" type="checkbox"/> ダーク</label>
-      </div>
+     <div class="side">
+  <!-- 並べ替え -->
+  <button id="sortTitleBtn" class="btn">曲名A→Z</button>
+  <button id="sortArtistBtn" class="btn">アーティストA→Z</button>
+  <label class="chip"><input id="darkToggle" type="checkbox"/> ダーク</label>
+
+  <!-- リクエスト受付（GoogleフォームのURLに差し替えてOK） -->
+  <a class="btn" id="requestBtn" href="https://forms.gle/XXXXXXXX"
+     target="_blank" rel="noopener"
+     title="お客さまのリクエスト曲を受け付けます">リクエスト追加</a>
+
+  <!-- YouTube（@しおやん-k5z）。必要に応じて書き換えてね -->
+  <a class="btn iconbtn"
+     href="https://www.youtube.com/@%E3%81%97%E3%81%8A%E3%82%84%E3%82%93-k5z?utm_source=songlist&utm_medium=header&utm_campaign=social"
+     target="_blank" rel="noopener" title="YouTube">
+    <!-- YouTubeアイコン -->
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor"
+      d="M23.5 6.2a4 4 0 0 0-2.8-2.8C18.9 3 12 3 12 3s-6.9 0-8.7.4A4 4 0 0 0 .5 6.2 41 41 0 0 0 0 12a41 41 0 0 0 .5 5.8 4 4 0 0 0 2.8 2.8C5.1 21 12 21 12 21s6.9 0 8.7-.4a4 4 0 0 0 2.8-2.8A41 41 0 0 0 24 12a41 41 0 0 0-.5-5.8ZM9.8 15.6V8.4L16 12l-6.2 3.6Z"/></svg>
+    <span>YouTube</span>
+  </a>
+
+  <!-- X（@Shioyan2023 固定） -->
+  <a class="btn iconbtn"
+     href="https://x.com/Shioyan2023?utm_source=songlist&utm_medium=header&utm_campaign=social"
+     target="_blank" rel="noopener" title="X(旧Twitter)">
+    <!-- Xアイコン -->
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor"
+      d="M17.6 3H21l-7 8.1L22.5 21H16l-5-6.2L5 21H1.7l7.5-8.7L2.5 3H9l4.6 5.6L17.6 3Zm-2.3 16.2h2.2L8.9 5.7H6.6l8.7 13.5Z"/></svg>
+    <span>X</span>
+  </a>
+</div>
     </div>
   </div>
 
   <div class="wrap">
     <div class="filters" id="filters">
-      <!-- 表示の絞り込みは“含める”方式（今回はデフォルトで「対応可」だけON） -->
+      <!-- 表示の絞り込みは“含める”方式（デフォルト：対応可のみON） -->
       <span class="chip"><input type="checkbox" id="fPractice"> 練習中</span>
       <span class="chip"><input type="checkbox" id="fOk"> 対応可</span>
       <span class="chip"><input type="checkbox" id="fEns"> 伴奏のみ</span>
@@ -89,11 +121,21 @@
     </div>
 
     <p style="color:var(--muted); font-size:13px; margin:12px 2px">
-      ※ CSVヘッダ例：<code>状態,曲名,アーティスト,ジャンル,備考,リンク先,コードURL</code>（順不同OK）  
-      ※ オリジナル曲は備考に <code>オリジナル</code> と入れておけば検索でヒットします。  
-      ※ 表では <code>状態</code> / <code>リンク先</code> / <code>コードURL</code> 列は非表示にしています。
+      ※ CSVヘッダ例：<code>状態,曲名,アーティスト,ジャンル,備考,リンク先,コードURL,おすすめURL</code>（順不同OK）  
+      ※ タイトルクリック先は <b>コードURL &gt; 直リンク（リンク先）</b> の順に優先。どちらも無い場合は ChordWiki/U-FRET/歌詞検索ボタンを自動表示。  
+      ※ 表では <code>状態</code> / <code>リンク先</code> / <code>コードURL</code> / <code>おすすめURL</code> 列は非表示です。
     </p>
   </div>
+
+  <footer>
+    <div>※当サイトの一部リンクには広告（アフィリエイトリンク）を含む場合があります。</div>
+    <div class="links">
+      <!-- お好みで差し替え -->
+      <a class="btn" href="https://www.amazon.co.jp/" target="_blank" rel="noopener nofollow sponsored">おすすめ弦</a>
+      <a class="btn" href="https://www.amazon.co.jp/" target="_blank" rel="noopener nofollow sponsored">カポ</a>
+      <a class="btn" href="https://www.amazon.co.jp/" target="_blank" rel="noopener nofollow sponsored">譜面スタンド</a>
+    </div>
+  </footer>
 
 <script>
   /* ===== 正規化 ===== */
@@ -122,7 +164,7 @@
 
   /* ===== State ===== */
   let rows=[];
-  let titleCol=-1, noteCol=-1, stateCol=-1, artistCol=-1, linkCol=-1, codeCol=-1;
+  let titleCol=-1, noteCol=-1, stateCol=-1, artistCol=-1, linkCol=-1, codeCol=-1, adCol=-1;
 
   // 並べ替え
   let sortKey = 'title';          // 'title' | 'artist'
@@ -161,7 +203,9 @@
 
     const body = rowsOnlyWithTitle.map(r=>{
       const linkUrl =(linkCol>=0 ? sanitizeURL(r[linkCol]) : '');   // 直リンク（任意）
-      const codeUrl =(codeCol>=0 ? sanitizeURL(r[codeCol]) : '');   // コードURL（任意・今回優先）
+      const codeUrl =(codeCol>=0 ? sanitizeURL(r[codeCol]) : '');   // コードURL（任意・最優先）
+      const adUrl   =(adCol  >=0 ? sanitizeURL(r[adCol])   : '');   // おすすめURL（任意）
+
       const tds = showIdx.map(i=>{
         const c = r[i] ?? '';
         if(i===titleCol){
@@ -169,7 +213,7 @@
           const artist = (artistCol>=0 ? r[artistCol] : '');
           let titleHTML = escapeHTML(title);
 
-          // ★ クリック先の優先順位：コードURL > 直リンク（リンク先） > クイック検索
+          // ★ クリック先の優先順位：コードURL > 直リンク > （無ければ検索ボタン）
           if (codeUrl) {
             titleHTML = `<a href="#" onclick="openSong('${escapeHTML(title)}','${codeUrl}')">${escapeHTML(title)}</a>`;
           } else if (linkUrl) {
@@ -177,6 +221,12 @@
           } else {
             titleHTML = `${escapeHTML(title)}${buildQuickLinks(title, artist)}`;
           }
+
+          // ★ 補助：おすすめURLがある時は“関連リンク”ボタンを追加（広告属性付き）
+          if (adUrl) {
+            titleHTML += ` <span class="quick-links"><a href="${adUrl}" target="_blank" rel="noopener nofollow sponsored">関連リンク</a></span>`;
+          }
+
           return `<td class="link">${titleHTML}</td>`;
         } else if(i===noteCol && norm(c)!==''){
           return `<td><span class="badge">${escapeHTML(norm(c))}</span></td>`;
@@ -254,8 +304,8 @@
     const afterSort    = sortRows(afterFilter);
 
     const header = rows[0];
-    // 状態 / リンク先 / コードURL 列は表示しない
-    let showIdx = header.map((_,i)=>i).filter(i => i!==stateCol && i!==linkCol && i!==codeCol);
+    // 状態 / リンク先 / コードURL / おすすめURL 列は表示しない
+    let showIdx = header.map((_,i)=>i).filter(i => i!==stateCol && i!==linkCol && i!==codeCol && i!==adCol);
     if (showIdx.length === 0) showIdx = header.map((_,i)=>i);
 
     renderHeader(header, showIdx);
@@ -301,6 +351,8 @@
       stateCol  = header.findIndex(h => /状態|ステータス|status/i.test(h));
       linkCol   = header.findIndex(h => /リンク先|url|link|リンク/i.test(h));
       codeCol   = header.findIndex(h => /コードURL|自.?コード|譜面|score|chart|pdf/i.test(h));
+      adCol     = header.findIndex(h => /おすすめURL|おすすめ|関連|affili|affiliate|広告/i.test(h));
+
       if (titleCol < 0) {
         if (stateCol === 0 && header.length > 1) titleCol = 1; else if (header.length > 1) titleCol = 0;
       }
@@ -319,4 +371,3 @@
 </script>
 </body>
 </html>
-
