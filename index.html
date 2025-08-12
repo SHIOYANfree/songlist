@@ -40,7 +40,7 @@
   th,td{padding:10px 12px; text-align:left}
   td{vertical-align:middle}
 
-  /* ヘッダー（列名）は出さない */
+  /* 見出しは非表示（重なり問題ゼロに） */
   thead{display:none}
 
   tr:nth-child(even) td{background:var(--zebra)}
@@ -74,7 +74,7 @@
 
   <div class="wrap">
     <div class="filters" id="filters">
-      <!-- 表示の絞り込みは“含める”方式（初期すべてON） -->
+      <!-- 表示の絞り込みは“含める”方式（今回はデフォルトで「対応可」だけON） -->
       <span class="chip"><input type="checkbox" id="fPractice"> 練習中</span>
       <span class="chip"><input type="checkbox" id="fOk"> 対応可</span>
       <span class="chip"><input type="checkbox" id="fEns"> 伴奏のみ</span>
@@ -133,11 +133,6 @@
   function escapeHTML(s){ return (s??'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
   function sanitizeURL(u){ try{ const url=new URL((u||'').trim()); if(url.protocol==='http:'||url.protocol==='https:') return url.href; }catch{} return ''; }
   function enc(s){ return encodeURIComponent(norm(s)); }
-  function isOriginal(row){
-    const artist = (artistCol>=0 ? toKana(norm(row[artistCol])) : '');
-    const note   = (noteCol>=0 ? toKana(norm(row[noteCol]))   : '');
-    return note.includes('オリジナル') || /しおやん|shioyan/i.test(artist);
-  }
   function buildQuickLinks(title, artist){
     const t=norm(title); if(!t) return '';
     const q = enc(`${t} ${artist||''}`);
@@ -150,12 +145,11 @@
       <a href="${jlyric}"    target="_blank" rel="noopener">歌詞検索</a>
     </span>`;
   }
-
   function openSong(title,url){ if(url){ window.open(url,'_blank','noopener'); } }
 
   /* ===== Rendering ===== */
   function renderHeader(headers, showIdx){
-    // ヘッダーは非表示（thead{display:none}）だが一応生成しておく
+    // thead 非表示だが生成はしておく（将来切替用）
     const h = showIdx.map(i => headers[i]);
     document.getElementById('thead').innerHTML = h.map(x=>`<th>${escapeHTML(x)}</th>`).join('');
   }
@@ -166,20 +160,20 @@
     const rowsOnlyWithTitle = (titleCol >= 0) ? data.slice(1).filter(r => norm(r[titleCol]) !== '') : data.slice(1);
 
     const body = rowsOnlyWithTitle.map(r=>{
-      const url     =(linkCol>=0 ? sanitizeURL(r[linkCol])  : '');
-      const codeUrl =(codeCol>=0 ? sanitizeURL(r[codeCol])  : '');
+      const linkUrl =(linkCol>=0 ? sanitizeURL(r[linkCol]) : '');   // 直リンク（任意）
+      const codeUrl =(codeCol>=0 ? sanitizeURL(r[codeCol]) : '');   // コードURL（任意・今回優先）
       const tds = showIdx.map(i=>{
         const c = r[i] ?? '';
         if(i===titleCol){
           const title  = norm(c);
           const artist = (artistCol>=0 ? r[artistCol] : '');
           let titleHTML = escapeHTML(title);
-          if (url) {
-            titleHTML = `<a href="#" onclick="openSong('${escapeHTML(title)}','${url}')">${escapeHTML(title)}</a>`;
-          } else if (codeUrl) {
-            titleHTML = `${escapeHTML(title)} <span class="quick-links"><a href="${codeUrl}" target="_blank" rel="noopener">自分のコード</a></span>`;
-          } else if (isOriginal(r)) {
-            titleHTML = `${escapeHTML(title)} <span class="badge">準備中</span>`;
+
+          // ★ クリック先の優先順位：コードURL > 直リンク（リンク先） > クイック検索
+          if (codeUrl) {
+            titleHTML = `<a href="#" onclick="openSong('${escapeHTML(title)}','${codeUrl}')">${escapeHTML(title)}</a>`;
+          } else if (linkUrl) {
+            titleHTML = `<a href="#" onclick="openSong('${escapeHTML(title)}','${linkUrl}')">${escapeHTML(title)}</a>`;
           } else {
             titleHTML = `${escapeHTML(title)}${buildQuickLinks(title, artist)}`;
           }
@@ -227,15 +221,14 @@
   }
 
   function applyStateFilter(allRows){
-    const selPractice = document.getElementById('fPractice').checked;
-    const selOk       = document.getElementById('fOk').checked;
-    const selEns      = document.getElementById('fEns').checked;
-    if(!selPractice && !selOk && !selEns) return [allRows[0]];
+    // 含める方式。チェックが全て外れていたらヘッダのみ返す
+    const onP = document.getElementById('fPractice').checked; // 練習中
+    const onO = document.getElementById('fOk').checked;       // 対応可
+    const onE = document.getElementById('fEns').checked;      // 伴奏のみ
+    if(!onP && !onO && !onE) return [allRows[0]];
     return [allRows[0]].concat(allRows.slice(1).filter(r=>{
       const st = (stateCol>=0 ? norm(r[stateCol]) : '');
-      return (selPractice && st==='練習中') ||
-             (selOk       && st==='対応可') ||
-             (selEns      && st==='伴奏のみ');
+      return (onP && st==='練習中') || (onO && st==='対応可') || (onE && st==='伴奏のみ');
     }));
   }
 
@@ -312,8 +305,10 @@
         if (stateCol === 0 && header.length > 1) titleCol = 1; else if (header.length > 1) titleCol = 0;
       }
 
-      // 初期：3チェックON
-      fPractice.checked = true; fOk.checked = true; fEns.checked = true;
+      // ★ デフォルト：対応可だけ ON
+      document.getElementById('fPractice').checked = false;
+      document.getElementById('fEns').checked      = false;
+      document.getElementById('fOk').checked       = true;
 
       rerender();
     }).catch(err=>{
