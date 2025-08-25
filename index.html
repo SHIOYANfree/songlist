@@ -57,10 +57,9 @@
             <label class="chk"><input type="checkbox" id="st_wip">練習中</label>
             <label class="chk"><input type="checkbox" id="st_ba">伴奏のみ</label>
           </div>
-          <!-- 並べ替えボタン（復活） -->
           <button id="sortTitle" class="btn">曲名 A→Z</button>
           <button id="sortArtist" class="btn">アーティスト A→Z</button>
-
+          <a class="btn" href="#request">リクエストを送る</a>
           <span class="badge">CSVは <code>songs.csv</code></span>
           <span class="count" id="csvName"></span>
         </div>
@@ -84,186 +83,68 @@
     </div>
   </section>
 
+  <!-- 🎵 リクエスト募集フォーム -->
+  <section id="request" style="max-width:1100px;margin:32px auto;padding:0 16px">
+    <h2>🎵 リクエスト募集</h2>
+    <p class="muted">弾いてほしい曲があれば、こちらのフォームから送ってください。</p>
+    <iframe
+      src="https://docs.google.com/forms/d/e/1FAIpQLSc_7e3Ihrz-KgMUAFa5VAve-1Ag41elJC9XhhKRKbuCIt09-Q/viewform?embedded=true"
+      width="100%" height="900" frameborder="0" marginheight="0" marginwidth="0">
+      読み込んでいます…
+    </iframe>
+    <p style="margin-top:8px;">
+      <a class="btn"
+         href="https://docs.google.com/forms/d/e/1FAIpQLSc_7e3Ihrz-KgMUAFa5VAve-1Ag41elJC9XhhKRKbuCIt09-Q/viewform?usp=dialog"
+         target="_blank" rel="noopener noreferrer">
+        新しいタブでフォームを開く
+      </a>
+    </p>
+  </section>
+
   <script>
-    // ============ 設定 ============
-    const CSV_PATH = 'songs.csv';
-    document.getElementById('csvName').textContent = 'CSV: ' + CSV_PATH;
-
-    // コード検索プロバイダ（常時表示）
-    const PROVIDERS = [
-      { name: 'U-フレット', build: (title, artist) => `https://www.google.com/search?q=site:ufret.jp+${encodeURIComponent(artist + ' ' + title)}` },
-      { name: 'J-Total',   build: (title, artist) => `https://www.google.com/search?q=site:music.j-total.net+${encodeURIComponent(artist + ' ' + title)}` },
-      { name: 'ChordWiki', build: (title, artist) => `https://www.google.com/search?q=site:chordwiki.org+${encodeURIComponent(artist + ' ' + title)}` },
-      { name: '楽器.me',   build: (title, artist) => `https://www.google.com/search?q=site:gakufu.gakki.me+${encodeURIComponent(artist + ' ' + title)}` },
+    const CSV_PATH='songs.csv';
+    document.getElementById('csvName').textContent='CSV: '+CSV_PATH;
+    const PROVIDERS=[
+      { name:'U-フレット', build:(t,a)=>`https://www.google.com/search?q=site:ufret.jp+${encodeURIComponent(a+' '+t)}` },
+      { name:'J-Total', build:(t,a)=>`https://www.google.com/search?q=site:music.j-total.net+${encodeURIComponent(a+' '+t)}` },
+      { name:'ChordWiki', build:(t,a)=>`https://www.google.com/search?q=site:chordwiki.org+${encodeURIComponent(a+' '+t)}` },
+      { name:'楽器.me', build:(t,a)=>`https://www.google.com/search?q=site:gakufu.gakki.me+${encodeURIComponent(a+' '+t)}` },
     ];
-
-    // ============ CSV パーサ ============
-    function parseCSV(csvText){
-      const rows=[]; let i=0, s=csvText, len=s.length, cur=[], field='', inQ=false;
-      const pushF=()=>{cur.push(field); field='';}; const pushR=()=>{rows.push(cur); cur=[];};
-      while(i<len){ const c=s[i];
-        if(inQ){ if(c==='\"'){ if(i+1<len && s[i+1]==='\"'){field+='\"'; i++;} else inQ=false; } else field+=c; }
-        else { if(c===',') pushF(); else if(c==='\n'){ pushF(); pushR(); }
-          else if(c==='\r'){} else if(c==='\"') inQ=true; else field+=c; }
-        i++;
-      }
-      pushF(); if(cur.length) pushR();
-      const header = rows.shift() || []; const idx={}; header.forEach((h,j)=>idx[h.trim()]=j);
-      function findIdx(names){ for(const k of names){ if(idx[k]!=null) return idx[k];
-        const low = Object.keys(idx).find(x=>x.toLowerCase()===k.toLowerCase()); if(low) return idx[low]; } return -1; }
-      const I={
-        title: findIdx(['曲名','タイトル','title']),
-        artist: findIdx(['アーティスト','歌手','artist']),
-        key: findIdx(['キー','key','調']),
-        state: findIdx(['状態','ステータス','status']),
-        code: findIdx(['コードURL','コード','code','コードUrl']),
-        memo: findIdx(['メモ','備考','note','memo']),
-      };
-      return rows
-        .filter(r=>r.length>1 && r.some(c=>(c||'').trim()!==''))
-        .map(r=>({
-          title: I.title>=0 ? (r[I.title]||'').trim() : '',
-          artist:I.artist>=0? (r[I.artist]||'').trim() : '',
-          key:   I.key>=0   ? (r[I.key]||'').trim() : '',
-          state: I.state>=0 ? (r[I.state]||'').trim() : '対応可',
-          code:  I.code>=0  ? (r[I.code]||'').trim() : '',
-          memo:  I.memo>=0  ? (r[I.memo]||'').trim() : '',
-        }));
-    }
-
-    // ============ DOM ============
-    const $q=document.getElementById('q'), $tbody=document.getElementById('tbody'), $count=document.getElementById('resultCount');
-    const $st_ok=document.getElementById('st_ok'), $st_wip=document.getElementById('st_wip'), $st_ba=document.getElementById('st_ba');
-    const $sortTitle=document.getElementById('sortTitle'), $sortArtist=document.getElementById('sortArtist');
-
-    // 並べ替え状態
-    let sortKey=null; // 'title' | 'artist' | null
-    let sortDir='asc'; // 'asc' | 'desc'
-    function toggleSort(which){
-      if(sortKey!==which){ sortKey=which; sortDir='asc'; }
-      else{ sortDir = (sortDir==='asc'?'desc':'asc'); }
-      // ボタンラベル更新
-      $sortTitle.textContent = '曲名 ' + (sortKey==='title' && sortDir==='desc' ? 'Z→A' : 'A→Z');
-      $sortArtist.textContent = 'アーティスト ' + (sortKey==='artist' && sortDir==='desc' ? 'Z→A' : 'A→Z');
-      render(filterApply(ALL));
-    }
-
-    function makeProviderButtons(title, artist){
-      const wrap=document.createElement('div'); wrap.className='providers';
-      PROVIDERS.forEach(p=>{
-        const a=document.createElement('a');
-        a.className='btn small'; a.href=p.build(title,artist); a.target='_blank'; a.rel='noopener noreferrer';
-        a.title=`${p.name}で「${artist} ${title}」を検索`; a.textContent=p.name;
-        wrap.appendChild(a);
-      }); return wrap;
-    }
-
-    function render(list){
-      // 並べ替え
-      const data = sortKey ? [...list].sort((a,b)=>{
-        const A=(a[sortKey]||'').toLowerCase(), B=(b[sortKey]||'').toLowerCase();
-        const cmp=A.localeCompare(B,'ja'); return sortDir==='asc'?cmp:-cmp;
-      }) : list;
-
-      $tbody.innerHTML='';
-      if(data.length===0){
-        const tr=document.createElement('tr'); const td=document.createElement('td');
-        td.colSpan=8; td.className='muted'; td.style.padding='20px'; td.textContent='条件に合う曲がありません。';
-        tr.appendChild(td); $tbody.appendChild(tr);
-      }else{
-        data.forEach((row,idx)=>{
-          const tr=document.createElement('tr');
-
-          const tdNo=document.createElement('td'); tdNo.textContent=String(idx+1); tr.appendChild(tdNo);
-
-          const tdTitle=document.createElement('td'); tdTitle.className='song';
-          if(row.code){
-            const a=document.createElement('a'); a.href=row.code; a.target='_blank'; a.rel='noopener noreferrer';
-            a.className='title'; a.textContent=row.title||'(無題)'; tdTitle.appendChild(a);
-          }else{ tdTitle.textContent=row.title||'(無題)'; }
-          tr.appendChild(tdTitle);
-
-          const tdArtist=document.createElement('td'); tdArtist.textContent=row.artist; tr.appendChild(tdArtist);
-
-          const tdKey=document.createElement('td'); tdKey.className='nowrap';
-          tdKey.innerHTML=row.key?`<span class="tag">Key: ${escapeHtml(row.key)}</span>`:''; tr.appendChild(tdKey);
-
-          const tdState=document.createElement('td'); tdState.className='nowrap';
-          tdState.innerHTML=row.state?`<span class="tag">${escapeHtml(row.state)}</span>`:''; tr.appendChild(tdState);
-
-          const tdCode=document.createElement('td'); tdCode.className='codeurl';
-          if(row.code){ const a=document.createElement('a'); a.href=row.code; a.target='_blank'; a.rel='noopener noreferrer'; a.textContent='開く'; tdCode.appendChild(a); }
-          else tdCode.innerHTML='<span class="muted">—</span>';
-          tr.appendChild(tdCode);
-
-          const tdSearch=document.createElement('td'); tdSearch.appendChild(makeProviderButtons(row.title,row.artist)); tr.appendChild(tdSearch);
-
-          const tdMemo=document.createElement('td'); tdMemo.textContent=row.memo||''; tr.appendChild(tdMemo);
-
-          $tbody.appendChild(tr);
-        });
-      }
-      $count.textContent = `表示件数：${data.length}`;
-    }
-
-    function activeStates(){
-      const s=[]; if($st_ok.checked) s.push('対応可'); if($st_wip.checked) s.push('練習中'); if($st_ba.checked) s.push('伴奏のみ'); return s;
-    }
-    function filterApply(all){
-      const terms=($q.value||'').trim().split(/\s+/).filter(Boolean);
-      const states=activeStates();
-      return all.filter(r=>{
-        if(states.length && !states.includes((r.state||'対応可'))) return false;
-        if(terms.length===0) return true;
-        const hay=[r.title,r.artist,r.key,r.memo,r.state].join(' ').toLowerCase();
-        return terms.every(t=>hay.includes(t.toLowerCase()));
-      });
-    }
-    function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
-
-    // ============ 起動 ============
-    let ALL=[];
-    async function boot(){
-      $q.value=''; // 初期は空
-      try{
-        const res=await fetch(CSV_PATH,{cache:'no-store'}); if(!res.ok) throw new Error('CSV取得失敗');
-        const text=await res.text(); ALL=parseCSV(text);
-      }catch(e){
-        ALL=[]; $tbody.innerHTML=`<tr><td colspan="8" class="muted" style="padding:20px">CSV「${CSV_PATH}」が読み込めませんでした。配置とファイル名を確認してください。</td></tr>`;
-        $count.textContent='表示件数：0'; return;
-      }
-      render(filterApply(ALL));
-    }
-
-    // イベント
+    function parseCSV(txt){const rws=[];let i=0,s=txt,l=s.length,cur=[],f='',q=false;
+      const pushF=()=>{cur.push(f);f='';},pushR=()=>{rws.push(cur);cur=[];};
+      while(i<l){const c=s[i];if(q){if(c==='\"'){if(i+1<l&&s[i+1]==='\"'){f+='\"';i++;}else q=false;}else f+=c;}
+      else{if(c===',')pushF();else if(c==='\n'){pushF();pushR();}else if(c==='\r'){}else if(c==='\"')q=true;else f+=c;}i++;}
+      pushF();if(cur.length)pushR();const h=rws.shift()||[],idx={};h.forEach((hh,j)=>idx[hh.trim()]=j);
+      function fI(ns){for(const k of ns){if(idx[k]!=null)return idx[k];const low=Object.keys(idx).find(x=>x.toLowerCase()===k.toLowerCase());if(low)return idx[low];}return-1;}
+      const I={title:fI(['曲名','タイトル','title']),artist:fI(['アーティスト','歌手','artist']),key:fI(['キー','key']),state:fI(['状態','ステータス','status']),code:fI(['コードURL','コード','code']),memo:fI(['メモ','note'])};
+      return rws.filter(r=>r.length>1&&r.some(c=>(c||'').trim()!=='')).map(r=>({title:I.title>=0?(r[I.title]||'').trim():'',artist:I.artist>=0?(r[I.artist]||'').trim():'',key:I.key>=0?(r[I.key]||'').trim():'',state:I.state>=0?(r[I.state]||'').trim():'対応可',code:I.code>=0?(r[I.code]||'').trim():'',memo:I.memo>=0?(r[I.memo]||'').trim():''}));}
+    const $q=document.getElementById('q'),$tbody=document.getElementById('tbody'),$count=document.getElementById('resultCount');
+    const $st_ok=document.getElementById('st_ok'),$st_wip=document.getElementById('st_wip'),$st_ba=document.getElementById('st_ba');
+    const $sortTitle=document.getElementById('sortTitle'),$sortArtist=document.getElementById('sortArtist');
+    let sortKey=null,sortDir='asc';function toggleSort(w){if(sortKey!==w){sortKey=w;sortDir='asc';}else sortDir=(sortDir==='asc'?'desc':'asc');
+      $sortTitle.textContent='曲名 '+(sortKey==='title'&&sortDir==='desc'?'Z→A':'A→Z');$sortArtist.textContent='アーティスト '+(sortKey==='artist'&&sortDir==='desc'?'Z→A':'A→Z');render(filterApply(ALL));}
+    function makeProviderButtons(t,a){const w=document.createElement('div');w.className='providers';PROVIDERS.forEach(p=>{const x=document.createElement('a');x.className='btn small';x.href=p.build(t,a);x.target='_blank';x.rel='noopener noreferrer';x.textContent=p.name;w.appendChild(x);});return w;}
+    function render(list){const data=sortKey?[...list].sort((a,b)=>{const A=(a[sortKey]||'').toLowerCase(),B=(b[sortKey]||'').toLowerCase();const cmp=A.localeCompare(B,'ja');return sortDir==='asc'?cmp:-cmp;}):list;
+      $tbody.innerHTML='';if(data.length===0){const tr=document.createElement('tr');const td=document.createElement('td');td.colSpan=8;td.className='muted';td.style.padding='20px';td.textContent='条件に合う曲がありません。';tr.appendChild(td);$tbody.appendChild(tr);}
+      else data.forEach((r,i)=>{const tr=document.createElement('tr');const tdNo=document.createElement('td');tdNo.textContent=String(i+1);tr.appendChild(tdNo);
+        const tdT=document.createElement('td');tdT.className='song';if(r.code){const a=document.createElement('a');a.href=r.code;a.target='_blank';a.rel='noopener noreferrer';a.className='title';a.textContent=r.title||'(無題)';tdT.appendChild(a);}else tdT.textContent=r.title||'(無題)';tr.appendChild(tdT);
+        const tdA=document.createElement('td');tdA.textContent=r.artist;tr.appendChild(tdA);
+        const tdK=document.createElement('td');tdK.className='nowrap';tdK.innerHTML=r.key?`<span class="tag">Key: ${escapeHtml(r.key)}</span>`:'';tr.appendChild(tdK);
+        const tdS=document.createElement('td');tdS.className='nowrap';tdS.innerHTML=r.state?`<span class="tag">${escapeHtml(r.state)}</span>`:'';tr.appendChild(tdS);
+        const tdC=document.createElement('td');tdC.className='codeurl';if(r.code){const a=document.createElement('a');a.href=r.code;a.target='_blank';a.rel='noopener noreferrer';a.textContent='開く';tdC.appendChild(a);}else tdC.innerHTML='<span class="muted">—</span>';tr.appendChild(tdC);
+        const tdSearch=document.createElement('td');tdSearch.appendChild(makeProviderButtons(r.title,r.artist));tr.appendChild(tdSearch);
+        const tdM=document.createElement('td');tdM.textContent=r.memo||'';tr.appendChild(tdM);
+        $tbody.appendChild(tr);});$count.textContent=`表示件数：${data.length}`;}
+    function activeStates(){const s=[];if($st_ok.checked)s.push('対応可');if($st_wip.checked)s.push('練習中');if($st_ba.checked)s.push('伴奏のみ');return s;}
+    function filterApply(all){const terms=($q.value||'').trim().split(/\s+/).filter(Boolean);const states=activeStates();
+      return all.filter(r=>{if(states.length&&!states.includes((r.state||'対応可')))return false;if(terms.length===0)return true;
+        const hay=[r.title,r.artist,r.key,r.memo,r.state].join(' ').toLowerCase();return terms.every(t=>hay.includes(t.toLowerCase()));});}
+    function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+    let ALL=[];async function boot(){$q.value='';try{const res=await fetch(CSV_PATH,{cache:'no-store'});if(!res.ok)throw new Error;const txt=await res.text();ALL=parseCSV(txt);}catch(e){ALL=[];$tbody.innerHTML=`<tr><td colspan="8" class="muted" style="padding:20px">CSV「${CSV_PATH}」が読み込めませんでした。</td></tr>`;$count.textContent='表示件数：0';return;}render(filterApply(ALL));}
     [$q,$st_ok,$st_wip,$st_ba].forEach(el=>el.addEventListener('input',()=>render(filterApply(ALL))));
-    $sortTitle.addEventListener('click',()=>toggleSort('title'));
-    $sortArtist.addEventListener('click',()=>toggleSort('artist'));
-
+    $sortTitle.addEventListener('click',()=>toggleSort('title'));$sortArtist.addEventListener('click',()=>toggleSort('artist'));
     boot();
   </script>
-
-<section style="max-width:1100px;margin:32px auto;padding:0 16px">
-  <h2>🎵 リクエスト募集</h2>
-  <p class="muted">「この曲を弾いてほしい！」というリクエストがあれば、こちらから送ってください。</p>
-
-  <!-- Googleフォーム埋め込み -->
-  <iframe
-    src="https://docs.google.com/forms/d/e/1FAIpQLSc_7e3Ihrz-KgMUAFa5VAve-1Ag41elJC9XhhKRKbuCIt09-Q/viewform?embedded=true"
-    width="100%"
-    height="700"
-    frameborder="0"
-    marginheight="0"
-    marginwidth="0">
-    読み込んでいます…
-  </iframe>
-
-  <!-- もし埋め込みがブロックされた場合の予備リンク -->
-  <p style="margin-top:8px;">
-    <a class="btn" href="https://docs.google.com/forms/d/e/1FAIpQLSc_7e3Ihrz-KgMUAFa5VAve-1Ag41elJC9XhhKRKbuCIt09-Q/viewform?usp=dialog" target="_blank" rel="noopener noreferrer">
-      新しいタブでフォームを開く
-    </a>
-  </p>
-</section>
 </body>
 </html>
+
