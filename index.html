@@ -27,7 +27,7 @@
     .toolbar input[type="search"]::placeholder{color:var(--muted)}
     .table{max-width:1100px;margin:16px auto;padding:0 16px}
     table{width:100%;border-collapse:separate;border-spacing:0;overflow:hidden;border:1px solid var(--border);border-radius:14px;background:var(--panel)}
-    thead{display:none} /* ← 見出しを非表示にして、最上段が隠れないように */
+    thead{display:none} /* 見出しは非表示（最上段が隠れないように） */
     tbody td{padding:12px 10px;border-bottom:1px solid var(--border);vertical-align:top}
     tbody tr:hover{background:#181d29}
     .song a.title{color:var(--link);text-decoration:none}
@@ -79,7 +79,7 @@
       </tbody>
     </table>
     <div class="foot">
-      CSVの列名例：<code>曲名,アーティスト,キー,状態,コードURL,メモ</code>（状態が無い場合は自動で「対応可」扱い）
+      CSV列名の例：<code>曲名,アーティスト,キー,状態,ジャンル,備考,コードURL</code>（無くてもOK。あるものだけ自動判定）
     </div>
   </section>
 
@@ -102,49 +102,198 @@
   </section>
 
   <script>
-    const CSV_PATH='songs.csv';
-    document.getElementById('csvName').textContent='CSV: '+CSV_PATH;
-    const PROVIDERS=[
+    // ========= 設定 =========
+    const CSV_PATH = 'songs.csv';
+    document.getElementById('csvName').textContent = 'CSV: ' + CSV_PATH;
+
+    // コード検索プロバイダ（常時表示）
+    const PROVIDERS = [
       { name:'U-フレット', build:(t,a)=>`https://www.google.com/search?q=site:ufret.jp+${encodeURIComponent(a+' '+t)}` },
-      { name:'J-Total', build:(t,a)=>`https://www.google.com/search?q=site:music.j-total.net+${encodeURIComponent(a+' '+t)}` },
+      { name:'J-Total',   build:(t,a)=>`https://www.google.com/search?q=site:music.j-total.net+${encodeURIComponent(a+' '+t)}` },
       { name:'ChordWiki', build:(t,a)=>`https://www.google.com/search?q=site:chordwiki.org+${encodeURIComponent(a+' '+t)}` },
-      { name:'楽器.me', build:(t,a)=>`https://www.google.com/search?q=site:gakufu.gakki.me+${encodeURIComponent(a+' '+t)}` },
+      { name:'楽器.me',   build:(t,a)=>`https://www.google.com/search?q=site:gakufu.gakki.me+${encodeURIComponent(a+' '+t)}` },
     ];
-    function parseCSV(txt){const rws=[];let i=0,s=txt,l=s.length,cur=[],f='',q=false;
-      const pushF=()=>{cur.push(f);f='';},pushR=()=>{rws.push(cur);cur=[];};
-      while(i<l){const c=s[i];if(q){if(c==='\"'){if(i+1<l&&s[i+1]==='\"'){f+='\"';i++;}else q=false;}else f+=c;}
-      else{if(c===',')pushF();else if(c==='\n'){pushF();pushR();}else if(c==='\r'){}else if(c==='\"')q=true;else f+=c;}i++;}
-      pushF();if(cur.length)pushR();const h=rws.shift()||[],idx={};h.forEach((hh,j)=>idx[hh.trim()]=j);
-      function fI(ns){for(const k of ns){if(idx[k]!=null)return idx[k];const low=Object.keys(idx).find(x=>x.toLowerCase()===k.toLowerCase());if(low)return idx[low];}return-1;}
-      const I={title:fI(['曲名','タイトル','title']),artist:fI(['アーティスト','歌手','artist']),key:fI(['キー','key']),state:fI(['状態','ステータス','status']),code:fI(['コードURL','コード','code']),memo:fI(['メモ','note'])};
-      return rws.filter(r=>r.length>1&&r.some(c=>(c||'').trim()!=='')).map(r=>({title:I.title>=0?(r[I.title]||'').trim():'',artist:I.artist>=0?(r[I.artist]||'').trim():'',key:I.key>=0?(r[I.key]||'').trim():'',state:I.state>=0?(r[I.state]||'').trim():'対応可',code:I.code>=0?(r[I.code]||'').trim():'',memo:I.memo>=0?(r[I.memo]||'').trim():''}));}
-    const $q=document.getElementById('q'),$tbody=document.getElementById('tbody'),$count=document.getElementById('resultCount');
-    const $st_ok=document.getElementById('st_ok'),$st_wip=document.getElementById('st_wip'),$st_ba=document.getElementById('st_ba');
-    const $sortTitle=document.getElementById('sortTitle'),$sortArtist=document.getElementById('sortArtist');
-    let sortKey=null,sortDir='asc';function toggleSort(w){if(sortKey!==w){sortKey=w;sortDir='asc';}else sortDir=(sortDir==='asc'?'desc':'asc');
-      $sortTitle.textContent='曲名 '+(sortKey==='title'&&sortDir==='desc'?'Z→A':'A→Z');$sortArtist.textContent='アーティスト '+(sortKey==='artist'&&sortDir==='desc'?'Z→A':'A→Z');render(filterApply(ALL));}
-    function makeProviderButtons(t,a){const w=document.createElement('div');w.className='providers';PROVIDERS.forEach(p=>{const x=document.createElement('a');x.className='btn small';x.href=p.build(t,a);x.target='_blank';x.rel='noopener noreferrer';x.textContent=p.name;w.appendChild(x);});return w;}
-    function render(list){const data=sortKey?[...list].sort((a,b)=>{const A=(a[sortKey]||'').toLowerCase(),B=(b[sortKey]||'').toLowerCase();const cmp=A.localeCompare(B,'ja');return sortDir==='asc'?cmp:-cmp;}):list;
-      $tbody.innerHTML='';if(data.length===0){const tr=document.createElement('tr');const td=document.createElement('td');td.colSpan=8;td.className='muted';td.style.padding='20px';td.textContent='条件に合う曲がありません。';tr.appendChild(td);$tbody.appendChild(tr);}
-      else data.forEach((r,i)=>{const tr=document.createElement('tr');const tdNo=document.createElement('td');tdNo.textContent=String(i+1);tr.appendChild(tdNo);
-        const tdT=document.createElement('td');tdT.className='song';if(r.code){const a=document.createElement('a');a.href=r.code;a.target='_blank';a.rel='noopener noreferrer';a.className='title';a.textContent=r.title||'(無題)';tdT.appendChild(a);}else tdT.textContent=r.title||'(無題)';tr.appendChild(tdT);
-        const tdA=document.createElement('td');tdA.textContent=r.artist;tr.appendChild(tdA);
-        const tdK=document.createElement('td');tdK.className='nowrap';tdK.innerHTML=r.key?`<span class="tag">Key: ${escapeHtml(r.key)}</span>`:'';tr.appendChild(tdK);
-        const tdS=document.createElement('td');tdS.className='nowrap';tdS.innerHTML=r.state?`<span class="tag">${escapeHtml(r.state)}</span>`:'';tr.appendChild(tdS);
-        const tdC=document.createElement('td');tdC.className='codeurl';if(r.code){const a=document.createElement('a');a.href=r.code;a.target='_blank';a.rel='noopener noreferrer';a.textContent='開く';tdC.appendChild(a);}else tdC.innerHTML='<span class="muted">—</span>';tr.appendChild(tdC);
-        const tdSearch=document.createElement('td');tdSearch.appendChild(makeProviderButtons(r.title,r.artist));tr.appendChild(tdSearch);
-        const tdM=document.createElement('td');tdM.textContent=r.memo||'';tr.appendChild(tdM);
-        $tbody.appendChild(tr);});$count.textContent=`表示件数：${data.length}`;}
-    function activeStates(){const s=[];if($st_ok.checked)s.push('対応可');if($st_wip.checked)s.push('練習中');if($st_ba.checked)s.push('伴奏のみ');return s;}
-    function filterApply(all){const terms=($q.value||'').trim().split(/\s+/).filter(Boolean);const states=activeStates();
-      return all.filter(r=>{if(states.length&&!states.includes((r.state||'対応可')))return false;if(terms.length===0)return true;
-        const hay=[r.title,r.artist,r.key,r.memo,r.state].join(' ').toLowerCase();return terms.every(t=>hay.includes(t.toLowerCase()));});}
+
+    // ========= 正規化（検索強化：全角/半角・ひら/カナ統一） =========
+    function norm(s){
+      return String(s || '')
+        .normalize('NFKC')
+        .toLowerCase()
+        .replace(/[ぁ-ゖ]/g, ch => String.fromCharCode(ch.charCodeAt(0) + 0x60)); // ひらがな→カタカナ
+    }
+
+    // ========= CSVパーサ =========
+    function parseCSV(txt){
+      const rows=[]; let i=0, s=txt, L=s.length, cur=[], field='', inQ=false;
+      const pushF=()=>{cur.push(field); field='';}, pushR=()=>{rows.push(cur); cur=[];};
+      while(i<L){
+        const c=s[i];
+        if(inQ){
+          if(c==='\"'){ if(i+1<L && s[i+1]==='\"'){ field+='\"'; i++; } else inQ=false; }
+          else field+=c;
+        }else{
+          if(c===',') pushF();
+          else if(c==='\n'){ pushF(); pushR(); }
+          else if(c==='\r'){}
+          else if(c==='\"') inQ=true;
+          else field+=c;
+        }
+        i++;
+      }
+      pushF(); if(cur.length) pushR();
+
+      const header = rows.shift() || [];
+      const idx={}; header.forEach((h,j)=>idx[h.trim()]=j);
+
+      function findIdx(cands){
+        for(const k of cands){
+          if(idx[k]!=null) return idx[k];
+          const low = Object.keys(idx).find(x=>x.toLowerCase()===k.toLowerCase());
+          if(low) return idx[low];
+        }
+        return -1;
+      }
+
+      const I = {
+        title:  findIdx(['曲名','タイトル','title']),
+        artist: findIdx(['アーティスト','歌手','artist']),
+        key:    findIdx(['キー','key','調']),
+        state:  findIdx(['状態','ステータス','status']),
+        genre:  findIdx(['ジャンル','genre']),
+        code:   findIdx(['コードURL','コード','code','コードUrl']),
+        memo:   findIdx(['メモ','備考','note','memo']),   // ← 備考も拾う
+      };
+
+      return rows
+        .filter(r=>r.length>1 && r.some(c=>(c||'').trim()!==''))
+        .map(r=>({
+          title:  I.title>=0  ? (r[I.title]||'').trim()  : '',
+          artist: I.artist>=0 ? (r[I.artist]||'').trim() : '',
+          key:    I.key>=0    ? (r[I.key]||'').trim()    : '',
+          state:  I.state>=0  ? (r[I.state]||'').trim()  : '対応可',
+          genre:  I.genre>=0  ? (r[I.genre]||'').trim()  : '',
+          code:   I.code>=0   ? (r[I.code]||'').trim()   : '',
+          memo:   I.memo>=0   ? (r[I.memo]||'').trim()   : '',
+        }));
+    }
+
+    // ========= DOM & 状態 =========
+    const $q=document.getElementById('q'), $tbody=document.getElementById('tbody'), $count=document.getElementById('resultCount');
+    const $st_ok=document.getElementById('st_ok'), $st_wip=document.getElementById('st_wip'), $st_ba=document.getElementById('st_ba');
+    const $sortTitle=document.getElementById('sortTitle'), $sortArtist=document.getElementById('sortArtist');
+
+    let sortKey=null, sortDir='asc';
+    function toggleSort(which){
+      if(sortKey!==which){ sortKey=which; sortDir='asc'; }
+      else{ sortDir = (sortDir==='asc'?'desc':'asc'); }
+      $sortTitle.textContent  = '曲名 ' + (sortKey==='title'  && sortDir==='desc' ? 'Z→A' : 'A→Z');
+      $sortArtist.textContent = 'アーティスト ' + (sortKey==='artist'&& sortDir==='desc' ? 'Z→A' : 'A→Z');
+      render(filterApply(ALL));
+    }
+
+    function makeProviderButtons(t,a){
+      const w=document.createElement('div'); w.className='providers';
+      PROVIDERS.forEach(p=>{
+        const x=document.createElement('a');
+        x.className='btn small'; x.href=p.build(t,a); x.target='_blank'; x.rel='noopener noreferrer';
+        x.textContent=p.name; w.appendChild(x);
+      });
+      return w;
+    }
+
     function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
-    let ALL=[];async function boot(){$q.value='';try{const res=await fetch(CSV_PATH,{cache:'no-store'});if(!res.ok)throw new Error;const txt=await res.text();ALL=parseCSV(txt);}catch(e){ALL=[];$tbody.innerHTML=`<tr><td colspan="8" class="muted" style="padding:20px">CSV「${CSV_PATH}」が読み込めませんでした。</td></tr>`;$count.textContent='表示件数：0';return;}render(filterApply(ALL));}
+
+    // ========= 絞り込み =========
+    function activeStates(){
+      const s=[];
+      if($st_ok.checked) s.push('対応可');
+      if($st_wip.checked) s.push('練習中');
+      if($st_ba.checked)  s.push('伴奏のみ');
+      return s;
+    }
+
+    function filterApply(all){
+      const terms = norm($q.value).trim().split(/\s+/).filter(Boolean);
+      const states = activeStates();
+
+      return all.filter(r=>{
+        if(states.length && !states.includes((r.state||'対応可'))) return false;
+        if(terms.length===0) return true;
+
+        // 検索対象：曲名/アーティスト/キー/状態/ジャンル/備考
+        const hay = norm([r.title, r.artist, r.key, r.state, r.genre, r.memo].join(' '));
+        return terms.every(t => hay.includes(t));
+      });
+    }
+
+    // ========= 描画 =========
+    function render(list){
+      const data = sortKey ? [...list].sort((a,b)=>{
+        const A=(a[sortKey]||'').toLowerCase(), B=(b[sortKey]||'').toLowerCase();
+        const cmp = A.localeCompare(B,'ja');
+        return sortDir==='asc' ? cmp : -cmp;
+      }) : list;
+
+      $tbody.innerHTML='';
+      if(data.length===0){
+        const tr=document.createElement('tr'); const td=document.createElement('td');
+        td.colSpan=8; td.className='muted'; td.style.padding='20px'; td.textContent='条件に合う曲がありません。';
+        tr.appendChild(td); $tbody.appendChild(tr);
+      }else{
+        data.forEach((r,i)=>{
+          const tr=document.createElement('tr');
+
+          const tdNo=document.createElement('td'); tdNo.textContent=String(i+1); tr.appendChild(tdNo);
+
+          const tdT=document.createElement('td'); tdT.className='song';
+          if(r.code){
+            const a=document.createElement('a'); a.href=r.code; a.target='_blank'; a.rel='noopener noreferrer'; a.className='title';
+            a.textContent=r.title||'(無題)'; tdT.appendChild(a);
+          }else{ tdT.textContent=r.title||'(無題)'; }
+          tr.appendChild(tdT);
+
+          const tdA=document.createElement('td'); tdA.textContent=r.artist; tr.appendChild(tdA);
+
+          const tdK=document.createElement('td'); tdK.className='nowrap';
+          tdK.innerHTML=r.key?`<span class="tag">Key: ${escapeHtml(r.key)}</span>`:''; tr.appendChild(tdK);
+
+          const tdS=document.createElement('td'); tdS.className='nowrap';
+          tdS.innerHTML=r.state?`<span class="tag">${escapeHtml(r.state)}</span>`:''; tr.appendChild(tdS);
+
+          const tdC=document.createElement('td'); tdC.className='codeurl';
+          if(r.code){ const a=document.createElement('a'); a.href=r.code; a.target='_blank'; a.rel='noopener noreferrer'; a.textContent='開く'; tdC.appendChild(a); }
+          else tdC.innerHTML='<span class="muted">—</span>';
+          tr.appendChild(tdC);
+
+          const tdSearch=document.createElement('td'); tdSearch.appendChild(makeProviderButtons(r.title,r.artist)); tr.appendChild(tdSearch);
+
+          const tdM=document.createElement('td'); tdM.textContent=r.memo||''; tr.appendChild(tdM);
+
+          $tbody.appendChild(tr);
+        });
+      }
+      $count.textContent = `表示件数：${data.length}`;
+    }
+
+    // ========= 起動 =========
+    let ALL=[];
+    async function boot(){
+      $q.value=''; // 初期は空
+      try{
+        const res=await fetch(CSV_PATH,{cache:'no-store'}); if(!res.ok) throw new Error('CSV取得失敗');
+        const txt=await res.text(); ALL=parseCSV(txt);
+      }catch(e){
+        ALL=[];
+        $tbody.innerHTML=`<tr><td colspan="8" class="muted" style="padding:20px">CSV「${CSV_PATH}」が読み込めませんでした。</td></tr>`;
+        $count.textContent='表示件数：0'; return;
+      }
+      render(filterApply(ALL));
+    }
+
     [$q,$st_ok,$st_wip,$st_ba].forEach(el=>el.addEventListener('input',()=>render(filterApply(ALL))));
-    $sortTitle.addEventListener('click',()=>toggleSort('title'));$sortArtist.addEventListener('click',()=>toggleSort('artist'));
+    document.getElementById('sortTitle').addEventListener('click',()=>toggleSort('title'));
+    document.getElementById('sortArtist').addEventListener('click',()=>toggleSort('artist'));
     boot();
   </script>
 </body>
 </html>
-
